@@ -66,13 +66,15 @@ main{padding:22px;max-width:1080px;margin:0 auto}
 .ct{font-size:.97rem;font-weight:700;color:var(--navy2);margin-bottom:16px;display:flex;align-items:center;gap:8px}
 .ct::before{content:'';width:4px;height:17px;background:var(--teal);border-radius:2px;flex-shrink:0}
 
-/* ── FORM ── */
-.fg{display:grid;grid-template-columns:1fr 1fr;gap:13px;align-items:start}
+/* ── FORM (estilo Skin Fabric) ── */
+.section-title{font-size:11px;color:var(--g4);letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;padding-bottom:7px;border-bottom:1px solid var(--g2)}
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
 .fi{display:flex;flex-direction:column;gap:5px}
 .fi.full{grid-column:1/-1}
-.lbl{font-size:.76rem;font-weight:700;color:var(--g6);text-transform:uppercase;letter-spacing:.4px}
-input,select,textarea{border:1.5px solid var(--g2);border-radius:7px;padding:9px 11px;font-size:.91rem;font-family:var(--font);color:var(--navy);transition:.18s;background:var(--w);width:100%}
-input:focus,select:focus,textarea:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px rgba(42,191,191,.13)}
+.lbl{font-size:11px;color:var(--g6);letter-spacing:.8px;text-transform:uppercase;font-weight:500}
+input,select,textarea{background:var(--w);border:1px solid var(--g2);border-radius:6px;padding:8px 11px;color:var(--navy);font-size:13px;font-family:var(--font);outline:none;transition:border-color .18s,box-shadow .18s;width:100%}
+input[type="date"]{color-scheme:light}
+input:focus,select:focus,textarea:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(42,191,191,.1);outline:none}
 input:disabled{background:var(--g1);color:var(--g4);cursor:not-allowed}
 textarea{resize:vertical;min-height:68px}
 .mon{position:relative}.mon span{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--g4);font-weight:700;pointer-events:none}
@@ -255,54 +257,46 @@ textarea{resize:vertical;min-height:68px}
     <!-- ══ REGISTRO ══ -->
     <div id="tab-registro" class="tab-pane">
       <div class="card">
-        <div class="ct">Nueva Consulta / Servicio</div>
+        <div class="section-title">Registrar consulta / servicio</div>
         <div class="fg">
-          <div class="fi"><label class="lbl">Fecha *</label><input type="date" id="r-fecha"/></div>
-          <div class="fi"><label class="lbl">Doctor *</label>
+          <div class="fi"><label class="lbl">Fecha</label><input type="date" id="r-fecha"/></div>
+          <div class="fi"><label class="lbl">Atendido por</label>
             <select id="r-doctor">
-              <option value="">— Seleccionar —</option>
+              <option value="">Seleccionar...</option>
               <option>Dr. Eduardo Serratos</option><option>Dra. Cynthia Dickter</option>
               <option>Dra. Paulina Chabat</option><option>Dr. Carlos Lopez</option>
               <option>Dra. Ana Isabel Gandara</option>
             </select>
           </div>
-          <div class="fi"><label class="lbl">Paciente *</label>
+          <div class="fi"><label class="lbl">Paciente</label>
             <input type="text" id="r-paciente" placeholder="Nombre completo" list="dl-pacientes"/>
             <datalist id="dl-pacientes"></datalist>
           </div>
-          <div class="fi"><label class="lbl">Tipo de servicio *</label>
+          <div class="fi"><label class="lbl">Tipo de servicio</label>
             <select id="r-tipo">
-              <option value="">— Seleccionar —</option>
+              <option value="">Seleccionar...</option>
               <option>Primera Vez</option><option>Subsecuente</option>
               <option>Procedimiento</option><option>Laboratorio</option><option>Producto Farmacia</option>
             </select>
           </div>
           <div class="fi full" id="r-desc-wrap" style="display:none">
-            <label class="lbl" id="r-desc-lbl">Descripción *</label>
-            <input type="text" id="r-desc"/>
+            <label class="lbl" id="r-desc-lbl">Descripción</label>
+            <input type="text" id="r-desc" placeholder="Describe el procedimiento o producto..."/>
           </div>
-          <div class="fi"><label class="lbl">Monto *</label>
-            <div class="mon"><span>$</span><input type="number" id="r-monto" min="0" step="0.01" placeholder="0.00"/></div>
+          <div class="fi"><label class="lbl">Monto ($)</label>
+            <input type="number" id="r-monto" min="0" step="0.01" placeholder="0.00"/>
           </div>
-          <div class="fi"><label class="lbl">Medio de pago *</label>
-            <select id="r-pago">
-              <option value="">— Seleccionar —</option>
-              <option>Tarjeta</option><option>Efectivo</option><option>Transferencia</option><option>Cortesía</option>
-            </select>
-          </div>
-          <div class="fi full">
-            <button class="btn-add2" id="r-btn-add2">+ 2do pago</button>
+          <div class="fi"><label class="lbl">Medio de pago</label>
+            <select id="r-pago"></select>
+            <button class="btn-add2" id="r-btn-add2" style="margin-top:6px">+ 2do pago</button>
             <div class="wrap2" id="r-wrap2" style="display:none">
-              <button class="rm2" id="r-btn-rm2">✕</button>
+              <button class="rm2" id="r-btn-rm2" style="position:absolute;top:7px;right:9px">quitar ✕</button>
               <div class="prow">
-                <div class="fi"><label class="lbl">2do Monto</label>
-                  <div class="mon"><span>$</span><input type="number" id="r-monto2" min="0" step="0.01" placeholder="0.00"/></div>
+                <div class="fi"><label class="lbl">Monto 2do pago</label>
+                  <input type="number" id="r-monto2" min="0" step="0.01" placeholder="0.00"/>
                 </div>
-                <div class="fi"><label class="lbl">2do Medio de pago</label>
-                  <select id="r-pago2">
-                    <option value="">— Seleccionar —</option>
-                    <option>Tarjeta</option><option>Efectivo</option><option>Transferencia</option><option>Cortesía</option>
-                  </select>
+                <div class="fi"><label class="lbl">Medio de pago</label>
+                  <select id="r-pago2"></select>
                 </div>
               </div>
             </div>
@@ -377,9 +371,18 @@ textarea{resize:vertical;min-height:68px}
           <button class="ptab" data-pt="recompra">🔄 Recompra / Seguimiento</button>
         </div>
         <div id="prm-inactivos">
-          <div class="cpanel">
+          <div class="cpanel" style="flex-wrap:wrap;gap:10px">
             <label>Días sin visita:</label>
             <input type="number" id="prm-umbral" value="60" min="1" style="width:65px"/>
+            <label style="margin-left:8px">Tipo de servicio:</label>
+            <select id="prm-tipo" style="font-size:.85rem;padding:5px 9px;border-radius:6px;border:1px solid var(--g2)">
+              <option value="">Todos</option>
+              <option>Primera Vez</option>
+              <option>Subsecuente</option>
+              <option>Procedimiento</option>
+              <option>Laboratorio</option>
+              <option>Producto Farmacia</option>
+            </select>
             <button class="btn btn-sm btn-p" id="btn-prm-apply">Aplicar</button>
           </div>
           <div id="prm-inact-cont"></div>
@@ -591,6 +594,15 @@ function cortesiaLogic(pagoId, montoId) {
   const v = $(pagoId).value, m = $(montoId);
   if (v==='Cortesía') { m.value=''; m.disabled=true; m.style.background='var(--g1)'; }
   else { m.disabled=false; m.style.background=''; }
+}
+
+const PAGOS = ['Tarjeta','Efectivo','Transferencia','Cortesía'];
+
+function initPagoSelects() {
+  ['r-pago','r-pago2','e-pago','e-pago2'].forEach(id=>{
+    const sel=$(id); if(!sel)return;
+    sel.innerHTML='<option value="">Seleccionar...</option>'+PAGOS.map(p=>`<option>${p}</option>`).join('');
+  });
 }
 
 // ══════════════════════════════════════════════
@@ -920,29 +932,31 @@ function setPTab(tab) {
 
 function renderPrmInact() {
   const umbral=parseInt($('prm-umbral').value)||60;
+  const tipoFiltro=$('prm-tipo').value;
   const now=new Date(), byP={};
-  // Get last visit per patient
-  transactions.forEach(t=>{ if(!byP[t.paciente]||t.fecha>byP[t.paciente].fecha)byP[t.paciente]=t; });
+  transactions.forEach(t=>{
+    // If filtering by tipo, only consider matching transactions for "last visit"
+    if(tipoFiltro && t.tipo!==tipoFiltro) return;
+    if(!byP[t.paciente]||t.fecha>byP[t.paciente].fecha) byP[t.paciente]=t;
+  });
   const rows=Object.values(byP).map(t=>{
     const dias=Math.floor((now-new Date(t.fecha))/86400000);
-    // Get all visits for this patient sorted desc
     const historial=transactions.filter(x=>x.paciente===t.paciente).sort((a,b)=>b.fecha.localeCompare(a.fecha));
-    const ultimoSvc=t.descripcion ? `${t.tipo}: ${t.descripcion}` : t.tipo;
-    return {...t, dias, historial, ultimoSvc};
+    const ultimoSvc=t.descripcion?`${t.tipo}: ${t.descripcion}`:t.tipo;
+    return {...t,dias,historial,ultimoSvc};
   }).filter(t=>t.dias>=umbral).sort((a,b)=>b.dias-a.dias);
 
   const c=$('prm-inact-cont');
-  if(!rows.length){c.innerHTML=`<p style="color:var(--g4);text-align:center;padding:20px">Sin pacientes inactivos por más de ${umbral} días.</p>`;return;}
+  const tipoLabel=tipoFiltro?` con servicio "${tipoFiltro}"`:'';
+  if(!rows.length){c.innerHTML=`<p style="color:var(--g4);text-align:center;padding:20px">Sin pacientes${tipoLabel} inactivos por más de ${umbral} días.</p>`;return;}
 
-  c.innerHTML = rows.map((t,i)=>`
+  c.innerHTML=rows.map((t,i)=>`
     <div class="cierre-card" style="border-left-color:${t.dias>120?'#dc2626':'#d97706'}">
       <div class="cierre-header">
         <span class="cierre-name">${t.paciente}</span>
         <span class="pill" style="background:${t.dias>120?'#fee2e2':'#fef3c7'};color:${t.dias>120?'#dc2626':'#d97706'};font-size:12px;padding:3px 10px">${t.dias} días sin visita</span>
       </div>
-      <div class="cierre-meta">
-        Última visita: ${fmtF(t.fecha)} · ${t.doctor}
-      </div>
+      <div class="cierre-meta">Última visita: ${fmtF(t.fecha)} · ${t.doctor}</div>
       <div style="font-size:12px;color:var(--g6);margin-bottom:10px">
         <b style="color:var(--navy)">Último servicio:</b> ${t.ultimoSvc}
       </div>
@@ -951,30 +965,25 @@ function renderPrmInact() {
         <button class="btn btn-sm btn-p" data-pi="${encodeURIComponent(JSON.stringify({tipo:'inactivo',p:t.paciente,f:t.fecha,d:t.doctor,svc:t.ultimoSvc}))}">💬 Mensaje</button>
       </div>
       <div id="pl-i-${i}" class="pac-list">
-        ${t.historial.map(h=>`
-          <div class="pac-row">
-            <span>
-              <strong>${fmtF(h.fecha)}</strong>
-              <span style="color:var(--g4);font-size:11px"> · ${h.tipo}${h.descripcion?' — '+h.descripcion:''}</span>
-            </span>
-            <span style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:11px;color:var(--g6)">${h.pago}</span>
-              <span style="font-weight:600;color:var(--teal)">${fmt(h.monto+(h.monto2||0))}</span>
-            </span>
-          </div>`).join('')}
+        ${t.historial.map(h=>`<div class="pac-row">
+          <span><strong>${fmtF(h.fecha)}</strong> <span style="color:var(--g4);font-size:11px"> · ${h.tipo}${h.descripcion?' — '+h.descripcion:''}</span></span>
+          <span style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:11px;color:var(--g6)">${h.pago}</span>
+            <span style="font-weight:600;color:var(--teal)">${fmt(h.monto+(h.monto2||0))}</span>
+          </span>
+        </div>`).join('')}
       </div>
     </div>`).join('');
 
-  // Toggle listeners
   rows.forEach((_,i)=>{
-    const btn=$(`pb-i-${i}`), list=$(`pl-i-${i}`);
+    const btn=$(`pb-i-${i}`),list=$(`pl-i-${i}`);
     if(btn&&list) btn.addEventListener('click',()=>{
       const open=list.style.display==='block';
       list.style.display=open?'none':'block';
       btn.textContent=open?`▼ Ver historial (${rows[i].historial.length} visita${rows[i].historial.length!==1?'s':''})`:'▲ Ocultar historial';
     });
   });
-  c.querySelectorAll('[data-pi]').forEach(b=>b.addEventListener('click',()=>{ const o=JSON.parse(decodeURIComponent(b.dataset.pi)); abrirMsg(o); }));
+  c.querySelectorAll('[data-pi]').forEach(b=>b.addEventListener('click',()=>{const o=JSON.parse(decodeURIComponent(b.dataset.pi));abrirMsg(o);}));
 }
 
 function renderCatalog() {
@@ -1237,6 +1246,7 @@ document.getElementById('consulta-dr').addEventListener('change', renderHistoria
 
 document.getElementById('btn-prm-apply').addEventListener('click', renderPrmInact);
 document.getElementById('prm-umbral').addEventListener('change', renderPrmInact);
+document.getElementById('prm-tipo').addEventListener('change', renderPrmInact);
 document.getElementById('btn-cat-add').addEventListener('click', addCat);
 
 // ══════════════════════════════════════════════
@@ -1266,6 +1276,7 @@ window.addEventListener('load', async () => {
 
   setInterval(async ()=>{ await loadFromOneDrive(); if(_mode)renderHistorial(); }, 60000);
   setInterval(renewToken, 45*60*1000);
+  initPagoSelects();
 });
 </script>
 </body>
