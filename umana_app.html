@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="app-version" content="2026.10.30-5"/>
+<meta name="app-version" content="2026.10.30-6"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>UMANA Productividad</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -3346,7 +3346,7 @@ async function flashAnexoPaginar(d) {
     return { paginas, filasHtml, totHtml };
   } finally { ifr.remove(); }
 }
-async function flashHtmlAPdf(html, nombreArchivo) {
+async function flashHtmlAPdf(html, nombreArchivo, soloBlob) {
   await Promise.all([cargarScript(CDN_H2C), cargarScript(CDN.jspdf)]);
   const ifr = await flashMontarIframe(html);
   try {
@@ -3363,49 +3363,107 @@ async function flashHtmlAPdf(html, nombreArchivo) {
       pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', (PW - w) / 2, 0, w, h, undefined, 'FAST');
     }
     pdf.setProperties({ title: nombreArchivo.replace(/\.pdf$/, '').replace(/_/g, ' '), subject: 'Flash report · UMANA Ginecología' });
+    if (soloBlob) return pdf.output('blob');
     pdf.save(nombreArchivo);
   } finally { ifr.remove(); }
 }
-// Menú del botón "Exportar PDF": consolidado de todos los doctores o el de uno solo (solo lo suyo)
+// Menú del botón "Exportar PDF": todo en un PDF (separado por doctor), un PDF por doctor (ZIP) o el de un solo doctor
 function cerrarMenuFlash() { const m = $('c-flash-menu'); if (m) { m.hidden = true; $('c-flash').setAttribute('aria-expanded', 'false'); } document.removeEventListener('click', cerrarMenuFlash._fuera, true); }
+const flashIdsDoc = () => {
+  const porDoc = {};
+  C_ROWS_ALL.filter(c => !c.no_vino).forEach(c => { porDoc[c.doctor_id] = num((porDoc[c.doctor_id] || 0) + ingreso(c)); });
+  C_ROWS_ALL.forEach(c => { if (!(c.doctor_id in porDoc)) porDoc[c.doctor_id] = 0; });
+  return { porDoc, ids: Object.keys(porDoc).sort((a, b) => porDoc[b] - porDoc[a] || nombreDoctora(a).localeCompare(nombreDoctora(b))) };
+};
 function abrirMenuFlash(ev) {
   const btn = $('c-flash'), menu = $('c-flash-menu');
   if (!btn || btn.disabled) return;
   if (ES_DOCTORA()) return exportarFlashReport('');          // el doctor solo ve lo suyo: se genera directo
   if (!menu.hidden) return cerrarMenuFlash();
   if (!C_ROWS_ALL.length) return toast('No hay movimientos en este periodo para exportar.');
-  const porDoc = {};
-  C_ROWS_ALL.filter(c => !c.no_vino).forEach(c => { porDoc[c.doctor_id] = num((porDoc[c.doctor_id] || 0) + ingreso(c)); });
-  const ids = Object.keys(porDoc).sort((a, b) => porDoc[b] - porDoc[a] || nombreDoctora(a).localeCompare(nombreDoctora(b)));
-  const tot = sumar(Object.values(porDoc), v => v);
-  const item = (id, ico, txt, monto) => '<button type="button" role="menuitem" class="flash-opt' + ((id || '') === (C.doc || '') ? ' on' : '') + '" data-doc="' + esc(id) + '"><span>' + ico + ' ' + esc(txt) + '</span><b>' + fmt0(monto) + '</b></button>';
-  menu.innerHTML = '<div class="flash-menu-t">Descargar flash report de…</div>' + item('', '👥', 'Todos los doctores', tot) +
-    (ids.length ? '<div class="flash-menu-sep"></div>' + ids.map(id => item(id, '🩺', nombreDoctora(id), porDoc[id])).join('') : '');
-  menu.querySelectorAll('.flash-opt').forEach(b => b.onclick = e => { e.stopPropagation(); cerrarMenuFlash(); exportarFlashReport(b.dataset.doc); });
+  const { porDoc, ids } = flashIdsDoc(), tot = sumar(Object.values(porDoc), v => v);
+  const item = (accion, id, ico, txt, sub, monto) => '<button type="button" role="menuitem" class="flash-opt" data-acc="' + accion + '" data-doc="' + esc(id) + '"><span>' + ico + ' ' + esc(txt) +
+    (sub ? '<small style="display:block;color:var(--g6);font-size:10.5px;font-weight:500;margin-top:1px">' + esc(sub) + '</small>' : '') + '</span><b>' + fmt0(monto) + '</b></button>';
+  menu.innerHTML = '<div class="flash-menu-t">Descargar flash report</div>' +
+    item('todo', '', '📄', 'Todo en un solo PDF', 'Resumen general y una sección por doctor', tot) +
+    (ids.length > 1 ? item('zip', '', '📦', 'Un PDF por doctor', ids.length + ' archivos en un ZIP', tot) : '') +
+    '<div class="flash-menu-sep"></div><div class="flash-menu-t" style="padding-top:4px">Solo un doctor</div>' +
+    ids.map(id => item('uno', id, '🩺', nombreDoctora(id), '', porDoc[id])).join('');
+  menu.querySelectorAll('.flash-opt').forEach(b => b.onclick = e => {
+    e.stopPropagation(); cerrarMenuFlash();
+    if (b.dataset.acc === 'zip') exportarFlashPorDoctor(); else exportarFlashReport(b.dataset.doc, b.dataset.acc === 'todo');
+  });
   menu.hidden = false; btn.setAttribute('aria-expanded', 'true');
   cerrarMenuFlash._fuera = e => { if (!e.target.closest('.flash-wrap')) cerrarMenuFlash(); };
   document.addEventListener('click', cerrarMenuFlash._fuera, true);
 }
-async function exportarFlashReport(docId) {
+const flashNombre = (d, extra) => 'UMANA_Flash_Report_' + (d.esDia ? d.desde : d.desde.slice(0, 7)) + (extra ? '_' + extra : '') + '.pdf';
+const slugDoc = n => normTxt(corto(n)).replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+/* Arma el HTML de un reporte (general o de un doctor). conAnexo: agrega el detalle de pacientes del día */
+async function flashArmar(docId, conAnexo) {
+  const d = await flashReunirDatos(docId);
+  let extra = '', totalPags = 1;
+  if (conAnexo && d.esDia && d.anexo.length) {
+    const pag = await flashAnexoPaginar(d);
+    totalPags = 1 + pag.paginas.length;
+    extra = pag.paginas.map((p, k) => flashAnexoPagina(flashFechaTxt(d), fm0(d.total),
+      p.segs.map(sg => '<div class="blk">' + flashAnexoCabHtml(d.anexo[sg.bi], sg.cont) + pag.filasHtml[sg.bi].slice(sg.desde, sg.hasta).join('') + '</div>').join('') + (p.total ? pag.totHtml : ''), 2 + k, totalPags)).join('');
+  }
+  return { d, html: flashReportHtml(d, totalPags, extra) };
+}
+const cuerpoHtml = h => (h.match(/<body>([\s\S]*)<\/body>/) || [, ''])[1];
+function renumerarPaginas(html) {
+  const total = (html.match(/Página \d+ de \d+/g) || []).length; let i = 0;
+  return html.replace(/Página \d+ de \d+/g, () => 'Página ' + (++i) + ' de ' + total);
+}
+async function exportarFlashReport(docId, separado) {
   const btn = $('c-flash'); if (!btn || btn.disabled) return;
   docId = docId || '';
   const base = docId ? C_ROWS_ALL.filter(c => c.doctor_id === docId) : C_ROWS_ALL;
   if (!base.length) return toast('No hay movimientos en este periodo para exportar.');
   const txt0 = btn.textContent; btn.disabled = true; btn.textContent = '⏳ Generando…';
   try {
-    const d = await flashReunirDatos(docId);
-    const nombre = 'UMANA_Flash_Report_' + (d.esDia ? d.desde : d.desde.slice(0, 7)) + (d.doc ? '_' + normTxt(corto(d.doc)).replace(/[^a-z0-9]+/g, '_') : '') + '.pdf';
-    let extra = '', totalPags = 1;
-    if (d.esDia && d.anexo.length) {
-      const pag = await flashAnexoPaginar(d);
-      totalPags = 1 + pag.paginas.length;
-      extra = pag.paginas.map((p, k) => flashAnexoPagina(flashFechaTxt(d), fm0(d.total),
-        p.segs.map(sg => '<div class="blk">' + flashAnexoCabHtml(d.anexo[sg.bi], sg.cont) + pag.filasHtml[sg.bi].slice(sg.desde, sg.hasta).join('') + '</div>').join('') + (p.total ? pag.totHtml : ''), 2 + k, totalPags)).join('');
+    let html, nombre;
+    if (separado && !docId) {
+      // Todo en uno: resumen general + por cada doctor su hoja (y su detalle de pacientes si es cierre del día)
+      const gen = await flashArmar('', false), { ids } = flashIdsDoc();
+      const partes = [cuerpoHtml(gen.html)];
+      for (const id of ids) partes.push(cuerpoHtml((await flashArmar(id, true)).html));
+      html = gen.html.replace(/<body>[\s\S]*<\/body>/, '<body>' + renumerarPaginas(partes.join('')) + '</body>');
+      nombre = flashNombre(gen.d, '');
+    } else {
+      const r = await flashArmar(docId, true);
+      html = r.html; nombre = flashNombre(r.d, r.d.doc ? slugDoc(r.d.doc) : '');
     }
-    window.__FLASH_HTML = flashReportHtml(d, totalPags, extra);   // para revisión en pruebas
-    await flashHtmlAPdf(window.__FLASH_HTML, nombre);
+    window.__FLASH_HTML = html;   // para revisión en pruebas
+    await flashHtmlAPdf(html, nombre);
     toast('PDF generado.');
   } catch (e) { console.error('[flash report]', e); toast('No se pudo generar el PDF. Revisa tu conexión e inténtalo de nuevo.'); }
+  finally { btn.disabled = false; btn.textContent = txt0; }
+}
+/* Un PDF por doctor, todos juntos en un ZIP */
+const CDN_ZIP = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+async function exportarFlashPorDoctor() {
+  const btn = $('c-flash'); if (!btn || btn.disabled) return;
+  const { ids } = flashIdsDoc();
+  if (!ids.length) return toast('No hay movimientos en este periodo para exportar.');
+  const txt0 = btn.textContent; btn.disabled = true;
+  try {
+    await cargarScript(CDN_ZIP);
+    const zip = new window.JSZip(); let fecha = '';
+    window.__FLASH_ZIP = [];
+    for (let i = 0; i < ids.length; i++) {
+      btn.textContent = '⏳ ' + (i + 1) + ' de ' + ids.length + '…';
+      const r = await flashArmar(ids[i], true), nombre = flashNombre(r.d, slugDoc(r.d.doc));
+      fecha = r.d.esDia ? r.d.desde : r.d.desde.slice(0, 7);
+      zip.file(nombre, await flashHtmlAPdf(r.html, nombre, true));
+      window.__FLASH_ZIP.push(nombre);
+    }
+    const blob = await zip.generateAsync({ type: 'blob' }), a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'UMANA_Flash_Reports_' + fecha + '_por_doctor.zip';
+    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+    toast(ids.length + ' PDFs generados (uno por doctor).');
+  } catch (e) { console.error('[flash por doctor]', e); toast('No se pudieron generar los PDFs. Revisa tu conexión e inténtalo de nuevo.'); }
   finally { btn.disabled = false; btn.textContent = txt0; }
 }
 
