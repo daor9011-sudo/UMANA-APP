@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="app-version" content="2026.10.30-1"/>
+<meta name="app-version" content="2026.10.30-2"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>UMANA Productividad</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -872,6 +872,40 @@ textarea.app-input{height:auto}
 .cfg-scroll{max-height:52vh;overflow:auto;border:1px solid var(--g2);border-radius:10px}
 .cfg-scroll .tbl thead th{position:sticky;top:0;background:#fff;z-index:1}
 #r-modo{margin-bottom:14px}
+.a-box{border:1.5px solid var(--g2);border-radius:12px;padding:14px 16px;background:var(--g1)}
+.a-search{margin-bottom:10px;width:100%;background:#fff;border:1px solid var(--g2);border-radius:8px;padding:9px 12px;font-size:13px;font-family:inherit;color:var(--navy);outline:none}
+.a-search:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(42,191,191,.14)}
+.a-search.bad{border-color:#d98a6a;box-shadow:0 0 0 3px rgba(184,72,31,.12)}
+.a-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;max-height:220px;overflow-y:auto;padding-right:4px;margin-bottom:14px}
+.a-chip{display:flex;align-items:flex-start;gap:9px;padding:8px 10px;border-radius:9px;border:1.5px solid var(--g2);background:#fff;cursor:pointer;user-select:none;transition:.15s}
+.a-chip:hover{border-color:rgba(42,191,191,.5)}
+.a-chip.on{background:var(--teal-soft);border-color:rgba(42,191,191,.5)}
+.a-chip input{margin-top:2px;flex-shrink:0;accent-color:var(--teal);width:15px;height:15px}
+.a-chip .nom{font-size:12px;font-weight:700;color:var(--navy);line-height:1.3}
+.a-chip .ref{font-size:10px;color:var(--g4);margin-top:1px}
+.a-empty{padding:14px;font-size:12px;color:var(--g6);text-align:center;grid-column:1/-1}
+.a-seleccion{border-top:1px dashed var(--g2);padding-top:12px}
+.a-seleccion-titulo{font-size:10.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--g6);margin-bottom:10px}
+.a-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--g2);flex-wrap:wrap}
+.a-row:last-of-type{border-bottom:none}
+.a-row .nom{flex:1 1 150px;min-width:0;font-size:12.5px;font-weight:700;color:var(--navy)}
+.a-row .ref{font-size:10px;color:var(--g4);font-weight:400;margin-left:6px}
+.a-row .atendido-select{flex:0 0 auto;max-width:190px;font-size:11px;padding:6px 8px;border-radius:7px;border:1px solid var(--g2);background:#fff;color:var(--navy);font-family:inherit}
+.a-row .atendido-select.bad,.a-row .precio-unit.bad{outline:2px solid #d98a6a}
+.a-row .monto-wrap{display:flex;align-items:center;gap:4px;background:#fff;border:1px solid rgba(42,191,191,.5);border-radius:7px;padding:0 8px;width:120px;flex-shrink:0}
+.a-row .monto-wrap span{font-size:12px;color:var(--g6);font-weight:700}
+.a-row .monto-wrap input{border:none;padding:7px 0;font-size:13px;width:100%;outline:none;text-align:right;font-family:inherit;color:var(--navy);background:transparent}
+.a-row .monto-wrap input[readonly]{color:var(--g6)}
+.a-row .quitar{background:none;border:none;color:#B8481F;cursor:pointer;font-size:15px;padding:2px 4px;line-height:1;flex-shrink:0}
+.a-qty{display:inline-flex;align-items:center;border:1px solid var(--g2);border-radius:7px;overflow:hidden;background:#fff;flex-shrink:0}
+.a-qty button{border:none;background:var(--g1);width:26px;height:30px;font-size:15px;cursor:pointer;color:var(--navy);font-weight:700;font-family:inherit}
+.a-qty b{min-width:26px;text-align:center;font-size:13px;color:var(--navy)}
+.a-row .sub-farm{font-size:12px;font-weight:800;color:var(--navy);min-width:78px;text-align:right;flex-shrink:0}
+.a-vacio{font-size:11.5px;color:var(--g4);font-style:italic;padding:4px 0}
+.a-total{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:12px;color:var(--g6);font-weight:700}
+.a-total:empty{display:none}.a-total b{font-family:var(--font-d);font-size:18px;color:var(--navy)}
+.req-badge{font-size:9px;font-weight:800;letter-spacing:.4px;background:var(--teal-soft);color:#0d6b6b;border-radius:10px;padding:1px 7px;margin-left:4px;text-transform:uppercase}
+@media (max-width:560px){.a-row .nom{flex-basis:100%}.a-grid{grid-template-columns:1fr}}
 /* ── Pie, marca de agua, toast ── */
 .legal{text-align:center;font-size:11px;color:var(--g6);padding:6px 16px 26px}
 .legal a{color:var(--navy2)}
@@ -1890,31 +1924,28 @@ function setModoRegistro(m) {
   if (R_MODO === 'farm' && FORMS.f) FORMS.f.cargarDia();
 }
 
-/* ════════ REGISTRO › FARMACIA (venta por producto, como en Skin Fabric) ════════ */
+/* ════════ REGISTRO › FARMACIA (igual que el selector de Skin Fabric) ════════
+   Buscador + cuadrícula de productos visible, "Seleccionados y su valor cobrado" con vendido por, piezas −/+,
+   precio por pieza (solo el admin lo cambia si tiene precio de lista) y subtotal. Cada producto se guarda
+   como una venta en farmacia_ventas; los pagos se reparten entre los productos para que cada venta cuadre. */
 function htmlFormFarmacia(p) {
-  const docFija = ES_DOCTORA(), medios = opt(CATALOGOS.mediosPago, 'Seleccionar…');
+  const medios = opt(CATALOGOS.mediosPago, 'Seleccionar…');
   return '' +
   '<div class="b1-grid">' +
     '<div class="fi2"><label class="lbl2" for="' + p + '-fecha">Fecha</label><input class="app-input" type="date" id="' + p + '-fecha"></div>' +
-    '<div class="fi2"><label class="lbl2" for="' + p + '-doc">Atendido por</label>' +
-      '<input class="app-input" id="' + p + '-doc" list="' + p + '-dl-doc" placeholder="Escribe para buscar…" autocomplete="off"' + (docFija ? ' disabled' : '') + '>' +
-      '<datalist id="' + p + '-dl-doc"></datalist></div>' +
-    '<div class="fi2 ac-wrap"><label class="lbl2" for="' + p + '-prod">Producto</label>' +
-      '<input class="app-input" id="' + p + '-prod" placeholder="🔎 Busca por nombre…" autocomplete="off">' +
-      '<div class="ac-list hide" id="' + p + '-acp"></div></div>' +
-    '<div class="fi2"><label class="lbl2" for="' + p + '-cant">Cantidad</label><input class="app-input" type="number" id="' + p + '-cant" min="1" max="999" step="1" value="1" inputmode="numeric"></div>' +
-    '<div class="fi2"><label class="lbl2" for="' + p + '-pu">Precio unitario ($)</label><div class="mon2"><span>$</span><input class="app-input" type="number" id="' + p + '-pu" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></div>' +
-      '<div class="hint hide" id="' + p + '-precio"></div></div>' +
-    '<div class="b1-summary b1-tall"><div class="se">Resumen en vivo</div><div class="sv" id="' + p + '-sprod">Sin producto aún</div>' +
-      '<div class="sm" id="' + p + '-sdet">—</div><div class="sm" id="' + p + '-spag">—</div>' +
-      '<div class="sm" id="' + p + '-stot" style="font-weight:700;color:var(--teal);font-size:13px">$0.00</div>' +
-      '<div class="sm" id="' + p + '-sef">Efectivo: $0.00</div></div>' +
     '<div class="fi2 ac-wrap"><label class="lbl2" for="' + p + '-pac">Paciente <span style="font-weight:500;text-transform:none;letter-spacing:0">(opcional)</span></label>' +
       '<input class="app-input" id="' + p + '-pac" placeholder="Nombre completo" autocomplete="off">' +
       '<div class="ac-list hide" id="' + p + '-ac"></div>' +
       '<div class="hint hide" id="' + p + '-newpac">📋 Paciente nueva: se dará de alta al guardar.</div></div>' +
     '<div class="fi2"><label class="lbl2" for="' + p + '-tel">Teléfono</label><input class="app-input" type="tel" id="' + p + '-tel" inputmode="tel" placeholder="10 dígitos" maxlength="15"></div>' +
   '</div>' +
+  '<div class="fi2" style="margin-top:12px"><label class="lbl2">Productos de farmacia <span class="req-badge">al menos uno</span></label>' +
+    '<div class="a-box">' +
+      '<input class="a-search" type="text" id="' + p + '-buscar" placeholder="🔎 Buscar producto de farmacia..." autocomplete="off">' +
+      '<div class="a-grid" id="' + p + '-grid"></div>' +
+      '<div class="a-seleccion"><div class="a-seleccion-titulo">Seleccionados y su valor cobrado</div><div id="' + p + '-sel"></div>' +
+        '<div class="a-total" id="' + p + '-total"></div></div>' +
+    '</div></div>' +
   '<div class="row4">' +
     '<div class="fi2"><label class="lbl2" for="' + p + '-p1">💳 Medio de pago</label><select class="app-input" id="' + p + '-p1">' + medios + '</select>' +
       '<div class="sm" id="' + p + '-m1txt" style="font-size:11px;color:var(--g6);margin-top:4px"></div>' +
@@ -1935,68 +1966,76 @@ function htmlFormFarmacia(p) {
 }
 function initFormFarmacia(cont, p) {
   cont.innerHTML = htmlFormFarmacia(p);
-  const F = FORMS[p] = { pac: null, prod: null, busy: false, acIdx: -1, acRows: [], pIdx: -1, pRows: [], seqDia: 0 };
+  const F = FORMS[p] = { pac: null, sel: new Map(), busy: false, acIdx: -1, acRows: [], seqDia: 0 };
   const g = id => $(p + '-' + id);
-  g('dl-doc').innerHTML = DOCTORAS.filter(d => d.activo).map(d => '<option value="' + esc(d.nombre) + '">').join('');
-  const docSel = () => { const v = normTxt(g('doc').value); return DOCTORAS.find(d => normTxt(d.nombre) === v) || null; };
   const P1 = () => g('p1').value, P2 = () => g('p2').value, seg = () => !g('pago2').classList.contains('hide');
-  const cant = () => Math.max(0, Math.round(Number(g('cant').value) || 0));
-  const total = () => num(cant() * num(g('pu').value));
-  const lock = () => !!(F.prod && F.prod.precio != null && !ES_ADMIN());
-  // reparte el total entre los pagos (el 1.º siempre es lo que falta)
-  function pagos() {
-    const t = total();
-    if (P1() === 'Cortesía' && (!seg() || !P2() || P2() === 'Cortesía')) return { m1: 0, m2: seg() && P2() ? 0 : null, cortesia: true };
-    if (!seg()) return { m1: t, m2: null };
-    if (P2() === 'Cortesía') return { m1: P1() === 'Cortesía' ? 0 : t, m2: 0 };
-    if (P1() === 'Cortesía') return { m1: 0, m2: t };
-    return { m1: num(t - num(g('m2').value)), m2: num(g('m2').value) };
+  const prodDe = id => PRODUCTOS.find(x => x.id === id);
+  const bloqueado = pr => !!(pr && pr.precio != null && !ES_ADMIN());
+  const docDefault = () => ES_DOCTORA() ? PERFIL.id : (F.ultDoc || '');
+  const opDocs = sel => '<option value="">Vendido por...</option>' + DOCTORAS.filter(d => d.activo || d.id === sel).map(d => '<option value="' + esc(d.id) + '"' + (d.id === sel ? ' selected' : '') + '>' + esc(d.nombre) + '</option>').join('');
+  const subtotal = v => num(v.cant * num(v.pu));
+  const total = () => sumar([...F.sel.values()], subtotal);
+  /* Cuadrícula de productos (todos los activos; el buscador filtra por nombre) */
+  function pintarGrid() {
+    const toks = normTxt(g('buscar').value).split(' ').filter(Boolean);
+    const items = PRODUCTOS.filter(x => x.activo && toks.every(t => normTxt(x.nombre).includes(t)));
+    if (!items.length) { g('grid').innerHTML = '<div class="a-empty">' + (PRODUCTOS.some(x => x.activo) ? 'Sin resultados' : 'Todavía no hay productos de farmacia en el catálogo.') + '</div>'; return; }
+    g('grid').innerHTML = items.map(x => '<label class="a-chip' + (F.sel.has(x.id) ? ' on' : '') + '" data-id="' + esc(x.id) + '"><input type="checkbox"' + (F.sel.has(x.id) ? ' checked' : '') + '>' +
+      '<div><div class="nom">' + esc(x.nombre) + '</div><div class="ref">' + (x.precio == null ? 'precio libre' : 'ref. ' + fmt0(x.precio)) + '</div></div></label>').join('');
+    g('grid').querySelectorAll('.a-chip input').forEach(cb => cb.onchange = () => {
+      const id = cb.closest('.a-chip').dataset.id, pr = prodDe(id);
+      if (cb.checked) F.sel.set(id, { cant: 1, pu: pr.precio == null ? '' : num(pr.precio).toFixed(2), doc: docDefault() });
+      else F.sel.delete(id);
+      cb.closest('.a-chip').classList.toggle('on', cb.checked);
+      pintarSel();
+    });
   }
-  function pintar() {
-    const pr = F.prod && F.prod.precio != null ? num(F.prod.precio) : null;
-    g('pu').readOnly = lock();
-    g('precio').classList.toggle('hide', !F.prod);
-    g('precio').textContent = !F.prod ? '' : pr == null ? 'Producto sin precio de lista: captura el precio' : 'Precio de lista: ' + money(pr) + (lock() ? ' · solo el admin puede cambiarlo' : ' · como admin puedes ajustarlo');
-    if (seg() && (P1() === 'Cortesía' || P2() === 'Cortesía')) { g('m2').value = pagos().m2 != null ? pagos().m2.toFixed(2) : ''; g('m2').readOnly = true; } else g('m2').readOnly = false;
-    const pg = pagos(), t = total();
-    g('m1txt').textContent = P1() ? (seg() ? '1er pago: ' + money(pg.m1) : 'Cobra ' + money(pg.m1)) : '';
-    g('sprod').textContent = F.prod ? F.prod.nombre : (g('prod').value.trim() || 'Sin producto aún');
-    const d = docSel();
-    g('sdet').textContent = [cant() + ' × ' + money(num(g('pu').value)), d ? corto(d.nombre) : '', F.pac ? F.pac.nombre : (g('pac').value.trim() || '')].filter(Boolean).join(' · ');
-    const ps = []; if (P1()) ps.push(P1() + ' ' + money(pg.m1)); if (seg() && P2()) ps.push(P2() + ' ' + money(pg.m2 || 0));
-    g('spag').textContent = ps.join(' + ') || '—';
-    g('stot').textContent = money(pg.cortesia ? 0 : t);
-    g('sef').textContent = 'Efectivo: ' + money((P1() === 'Efectivo' ? pg.m1 : 0) + (seg() && P2() === 'Efectivo' ? (pg.m2 || 0) : 0));
+  /* Seleccionados: vendido por · piezas −/+ · precio por pieza · subtotal · quitar */
+  function pintarSel() {
+    if (!F.sel.size) { g('sel').innerHTML = '<div class="a-vacio">Todavía no has seleccionado ningún producto.</div>'; pintarTotales(); return; }
+    g('sel').innerHTML = [...F.sel.entries()].map(([id, v]) => {
+      const pr = prodDe(id) || {}, lock = bloqueado(pr);
+      return '<div class="a-row farm" data-id="' + esc(id) + '"><div class="nom">' + esc(pr.nombre || '(producto)') + '<span class="ref">' + (pr.precio == null ? 'precio libre' : 'ref. ' + fmt0(pr.precio)) + '</span></div>' +
+        '<select class="atendido-select" title="¿Quién generó la venta?"' + (ES_DOCTORA() ? ' disabled' : '') + '>' + opDocs(v.doc) + '</select>' +
+        '<div class="a-qty"><button type="button" class="qty-menos" aria-label="Menos">−</button><b>' + v.cant + '</b><button type="button" class="qty-mas" aria-label="Más">+</button></div>' +
+        '<div class="monto-wrap" title="' + (lock ? 'Precio de lista: solo el admin puede cambiarlo' : 'Precio por pieza') + '"><span>$</span><input type="number" min="0" step="0.01" class="precio-unit" value="' + esc(v.pu) + '"' + (lock ? ' readonly' : '') + ' aria-label="Precio por pieza"></div>' +
+        '<div class="sub-farm">' + money(subtotal(v)) + '</div><button class="quitar" type="button" title="Quitar">✕</button></div>';
+    }).join('');
+    g('sel').querySelectorAll('.a-row').forEach(row => {
+      const id = row.dataset.id, v = F.sel.get(id);
+      row.querySelector('.atendido-select').onchange = e => { v.doc = e.target.value; F.ultDoc = v.doc || F.ultDoc; };
+      row.querySelector('.qty-menos').onclick = () => { v.cant = Math.max(1, v.cant - 1); pintarSel(); };
+      row.querySelector('.qty-mas').onclick = () => { v.cant = Math.min(999, v.cant + 1); pintarSel(); };
+      row.querySelector('.precio-unit').oninput = e => { v.pu = e.target.value; row.querySelector('.sub-farm').textContent = money(subtotal(v)); pintarTotales(); };
+      row.querySelector('.quitar').onclick = () => { F.sel.delete(id); pintarGrid(); pintarSel(); };
+    });
+    pintarTotales();
   }
-  function elegirProd(r) {
-    F.prod = r; g('prod').value = r.nombre; cerrarAcP();
-    if (r.precio != null) g('pu').value = num(r.precio).toFixed(2); else if (!ES_ADMIN()) g('pu').value = '';
-    pintar();
+  /* Reparte los pagos entre las ventas (el 2do pago, proporcional; el 1ro, lo que falta en cada una) */
+  function repartir() {
+    const filas = [...F.sel.entries()].map(([id, v]) => ({ id, v, sub: subtotal(v) })), t = sumar(filas, x => x.sub);
+    const cort = P1() === 'Cortesía' && (!seg() || !P2() || P2() === 'Cortesía');
+    let m2 = !seg() || !P2() ? 0 : P2() === 'Cortesía' ? 0 : P1() === 'Cortesía' ? t : Math.min(num(g('m2').value), t);
+    let resto = m2;
+    filas.forEach((f, i) => {
+      if (cort) { f.m1 = 0; f.m2 = null; return; }
+      f.m2 = i === filas.length - 1 ? num(resto) : Math.min(f.sub, num(t > 0 ? m2 * f.sub / t : 0));
+      resto = num(resto - f.m2); f.m1 = num(f.sub - f.m2);
+    });
+    return { filas, t, m1: num(t - m2), m2, cort };
   }
-  function cerrarAcP() { g('acp').classList.add('hide'); F.pIdx = -1; }
-  g('prod').addEventListener('input', () => {
-    F.prod = null; pintar();
-    const toks = normTxt(g('prod').value).split(' ').filter(Boolean);
-    if (!toks.length) return cerrarAcP();
-    F.pRows = PRODUCTOS.filter(x => x.activo && toks.every(t => normTxt(x.nombre).includes(t))).slice(0, 30);
-    if (!F.pRows.length) { g('acp').innerHTML = '<div class="note" style="padding:9px 12px">Sin coincidencias.</div>'; g('acp').classList.remove('hide'); return; }
-    g('acp').innerHTML = F.pRows.map((r, i) => '<button type="button" data-i="' + i + '"><span>' + esc(r.nombre) + '</span><span class="tel">' + (r.precio == null ? 'precio libre' : money(r.precio)) + '</span></button>').join('');
-    g('acp').querySelectorAll('button').forEach(b => b.onmousedown = e => { e.preventDefault(); elegirProd(F.pRows[+b.dataset.i]); });
-    g('acp').classList.remove('hide');
-  });
-  g('prod').addEventListener('keydown', e => {
-    const items = g('acp').querySelectorAll('button'); if (g('acp').classList.contains('hide') || !items.length) return;
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); F.pIdx = (F.pIdx + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length; items.forEach((b, i) => b.classList.toggle('act', i === F.pIdx)); }
-    if (e.key === 'Enter' && F.pIdx >= 0) { e.preventDefault(); elegirProd(F.pRows[F.pIdx]); }
-    if (e.key === 'Escape') cerrarAcP();
-  });
-  g('prod').addEventListener('blur', () => setTimeout(cerrarAcP, 150));
+  function pintarTotales() {
+    if (seg() && (P1() === 'Cortesía' || P2() === 'Cortesía')) { g('m2').value = P2() === 'Cortesía' ? '0' : P1() === 'Cortesía' ? total().toFixed(2) : g('m2').value; g('m2').readOnly = true; } else g('m2').readOnly = false;
+    const r = repartir(), piezas = [...F.sel.values()].reduce((a, v) => a + v.cant, 0);
+    g('total').innerHTML = F.sel.size ? '<span>' + F.sel.size + ' producto' + (F.sel.size === 1 ? '' : 's') + ' · ' + piezas + ' pieza' + (piezas === 1 ? '' : 's') + '</span><b>' + money(r.cort ? 0 : r.t) + '</b>' : '';
+    g('m1txt').textContent = P1() && F.sel.size ? (r.cort ? 'Cortesía: $0.00' : seg() && P2() ? '1er pago: ' + money(r.m1) : 'Cobra ' + money(r.t)) : '';
+  }
   /* Paciente (opcional) con el mismo autocompletar que Registro */
   let acTimer = null, acSeq = 0;
   function cerrarAc() { g('ac').classList.add('hide'); F.acIdx = -1; }
-  function elegirPac(r) { F.pac = r; g('pac').value = r.nombre; g('tel').value = r.telefono || ''; g('newpac').classList.add('hide'); cerrarAc(); pintar(); }
+  function elegirPac(r) { F.pac = r; g('pac').value = r.nombre; g('tel').value = r.telefono || ''; g('newpac').classList.add('hide'); cerrarAc(); }
   g('pac').addEventListener('input', () => {
-    F.pac = null; pintar();
+    F.pac = null;
     const q = g('pac').value.trim();
     g('newpac').classList.toggle('hide', q.length < 2);
     clearTimeout(acTimer);
@@ -2024,40 +2063,42 @@ function initFormFarmacia(cont, p) {
   });
   g('pac').addEventListener('blur', () => setTimeout(cerrarAc, 150));
   g('tel').addEventListener('input', () => { const v = soloDigitos(g('tel').value); if (v !== g('tel').value) g('tel').value = v; });
-  function setSegundo(on) { g('pago2').classList.toggle('hide', !on); g('b2').classList.toggle('hide', on); if (!on) { g('m2').value = ''; g('p2').value = ''; } pintar(); }
+  g('buscar').addEventListener('input', pintarGrid);
+  function setSegundo(on) { g('pago2').classList.toggle('hide', !on); g('b2').classList.toggle('hide', on); if (!on) { g('m2').value = ''; g('p2').value = ''; } pintarTotales(); }
   g('b2').onclick = () => setSegundo(true); g('q2').onclick = () => setSegundo(false);
-  ['p1', 'p2'].forEach(id => g(id).onchange = pintar);
-  ['doc', 'cant', 'pu', 'm2'].forEach(id => g(id).addEventListener('input', pintar));
+  ['p1', 'p2'].forEach(id => g(id).onchange = pintarTotales);
+  g('m2').addEventListener('input', pintarTotales);
   g('fac').onchange = () => { g('wfac').classList.toggle('hide', !g('fac').checked); if (!g('fac').checked) g('nfac').value = ''; };
   g('fecha').addEventListener('change', () => F.cargarDia());
   function limpiar() {
-    ['prod', 'pac', 'tel', 'pu', 'm2', 'nfac', 'notas'].forEach(i => g(i).value = '');
-    g('cant').value = '1'; if (!ES_DOCTORA()) g('doc').value = '';
-    g('p1').value = ''; g('p2').value = ''; F.pac = null; F.prod = null; g('fac').checked = false; g('fac').onchange();
-    setSegundo(false); g('newpac').classList.add('hide'); g('err').classList.add('hide');
-    cont.querySelectorAll('.bad').forEach(e => e.classList.remove('bad')); pintar();
+    ['pac', 'tel', 'm2', 'nfac', 'notas', 'buscar'].forEach(i => g(i).value = '');
+    g('p1').value = ''; g('p2').value = ''; F.pac = null; F.sel.clear(); g('fac').checked = false; g('fac').onchange();
+    g('newpac').classList.add('hide'); g('err').classList.add('hide');
+    cont.querySelectorAll('.bad').forEach(e => e.classList.remove('bad'));
+    setSegundo(false); pintarGrid(); pintarSel();
   }
   function validar() {
     const falt = []; cont.querySelectorAll('.bad').forEach(e => e.classList.remove('bad'));
-    const marca = (id, t) => { g(id).classList.add('bad'); falt.push(t); };
+    const marca = (id, t) => { if (id) g(id).classList.add('bad'); if (!falt.includes(t)) falt.push(t); };
     const fecha = g('fecha').value;
     if (!fecha) marca('fecha', 'fecha'); else if (fecha > todayLocal()) marca('fecha', 'fecha (no puede ser futura)');
-    const d = docSel(); if (!d) marca('doc', 'doctor (elígelo de la lista)');
-    if (!F.prod) marca('prod', 'producto (elígelo de la lista)');
-    const c = cant(); if (!(c >= 1 && c <= 999)) marca('cant', 'cantidad');
-    if (!(num(g('pu').value) >= 0) || g('pu').value === '') marca('pu', 'precio unitario');
+    if (!F.sel.size) marca('buscar', 'al menos un producto');
+    F.sel.forEach((v, id) => {
+      const row = g('sel').querySelector('.a-row[data-id="' + id + '"]');
+      if (!v.doc) { marca(null, 'quién vendió cada producto'); if (row) row.querySelector('.atendido-select').classList.add('bad'); }
+      if (String(v.pu).trim() === '' || !(num(v.pu) >= 0)) { marca(null, 'precio por pieza'); if (row) row.querySelector('.precio-unit').classList.add('bad'); }
+    });
     const nom = g('pac').value.replace(/\s+/g, ' ').trim(), tel = soloDigitos(g('tel').value);
     if (nom && nom.length < 2) marca('pac', 'nombre de paciente');
     if (!F.pac && nom.length >= 2 && tel.length !== 10) marca('tel', 'teléfono de 10 dígitos para paciente nueva');
     if (!P1()) marca('p1', 'medio de pago');
-    const pg = pagos();
+    const r = repartir();
     if (seg()) {
       if (!P2()) marca('p2', 'medio del segundo pago');
-      if (P2() && P2() !== 'Cortesía' && P1() !== 'Cortesía' && !(pg.m2 > 0)) marca('m2', 'monto del segundo pago');
-      if (P2() && !pg.cortesia && pg.m1 < 0) marca('m2', 'el 2do pago no puede ser mayor al total');
-      if (P2() && P1() !== 'Cortesía' && P2() !== 'Cortesía' && !(pg.m1 > 0)) marca('m2', 'el 1er pago debe quedar mayor a cero');
+      if (P2() && P2() !== 'Cortesía' && P1() !== 'Cortesía' && !(r.m2 > 0)) marca('m2', 'monto del segundo pago');
+      if (P2() && P1() !== 'Cortesía' && P2() !== 'Cortesía' && num(g('m2').value) >= r.t) marca('m2', 'el 2do pago debe ser menor al total');
     }
-    return { falt, d, nom, tel, c, pg };
+    return { falt, nom, tel, r };
   }
   g('save').onclick = async () => {
     if (F.busy) return;
@@ -2072,18 +2113,20 @@ function initFormFarmacia(cont, p) {
         if (r.error || !r.data) throw r.error || new Error('No se pudo dar de alta a la paciente');
         pacId = r.data;
       }
-      const segundo = seg() && P2();
-      const fila = {
-        fecha: g('fecha').value, doctor_id: v.d.id, paciente_id: pacId, producto_id: F.prod.id, producto: F.prod.nombre,
-        cantidad: v.c, precio_unitario: num(g('pu').value),
-        monto: v.pg.m1, medio_pago: P1(), monto_2: segundo ? (v.pg.m2 || 0) : null, medio_pago_2: segundo ? P2() : null,
-        factura: g('fac').checked, num_factura: g('fac').checked ? (g('nfac').value.trim() || null) : null, notas: g('notas').value.trim() || null
-      };
-      const { data, error } = await sb.from('farmacia_ventas').insert(fila).select('id');
+      const filas = v.r.filas.map(f => {
+        const pr = prodDe(f.id), base = { fecha: g('fecha').value, doctor_id: f.v.doc, paciente_id: pacId, producto_id: f.id, producto: pr.nombre, cantidad: f.v.cant, precio_unitario: num(f.v.pu),
+          factura: g('fac').checked, num_factura: g('fac').checked ? (g('nfac').value.trim() || null) : null, notas: g('notas').value.trim() || null };
+        if (v.r.cort) return Object.assign(base, { monto: 0, medio_pago: 'Cortesía', monto_2: null, medio_pago_2: null });
+        if (seg() && P2() === 'Cortesía') return Object.assign(base, { monto: f.sub, medio_pago: P1(), monto_2: 0, medio_pago_2: 'Cortesía' });
+        if (!(f.m2 > 0)) return Object.assign(base, { monto: f.m1, medio_pago: P1(), monto_2: null, medio_pago_2: null });
+        if (!(f.m1 > 0)) return Object.assign(base, { monto: f.m2, medio_pago: P2(), monto_2: null, medio_pago_2: null });
+        return Object.assign(base, { monto: f.m1, medio_pago: P1(), monto_2: f.m2, medio_pago_2: P2() });
+      });
+      const { data, error } = await sb.from('farmacia_ventas').insert(filas).select('id');
       if (error) throw error;
-      if (!data || !data.length) throw new Error('La base no aceptó la venta (permisos u horario).');
-      toast('Venta de farmacia registrada.');
-      const f = g('fecha').value, dv = g('doc').value; limpiar(); g('fecha').value = f; g('doc').value = dv; pintar();
+      if (!data || data.length !== filas.length) throw new Error('La base no aceptó la venta (permisos u horario).');
+      toast(filas.length === 1 ? 'Venta de farmacia registrada.' : filas.length + ' productos registrados en farmacia.');
+      const f = g('fecha').value; limpiar(); g('fecha').value = f;
       F.cargarDia();
     } catch (e) {
       console.error(e);
@@ -2111,12 +2154,12 @@ function initFormFarmacia(cont, p) {
     } catch (e) { console.error(e); if (sq === F.seqDia) g('dia').innerHTML = '<div class="empty-note">No se pudieron cargar las ventas. ' + esc(traducirError(e)) + '</div>'; }
   };
   g('fecha').value = todayLocal();
-  if (ES_DOCTORA()) g('doc').value = PERFIL.nombre;
-  pintar();
+  pintarGrid(); pintarSel();
   F.limpiar = limpiar;
-  F.tieneCaptura = () => !!(g('prod').value.trim() || g('pac').value.trim() || num(g('m2').value) || g('notas').value.trim());
+  F.tieneCaptura = () => !!(F.sel.size || g('pac').value.trim() || g('notas').value.trim());
   return F;
 }
+
 async function borrarVentaFarmacia(v) {
   if (!v) return false;
   const pac = v.paciente ? v.paciente.nombre : 'sin paciente';
