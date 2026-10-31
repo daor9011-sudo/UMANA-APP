@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="app-version" content="2026.10.30-4"/>
+<meta name="app-version" content="2026.10.30-5"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>UMANA Productividad</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -886,6 +886,15 @@ textarea.app-input{height:auto}
 .warn-box label input{width:16px;height:16px;accent-color:#7D3C98;cursor:pointer}
 .warn-box .warn-sub{font-size:11px;color:var(--g6);margin-top:5px;margin-left:26px}
 .reg-bar-espaciador{height:88px}
+.reg-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.reg-tab{display:flex;align-items:center;gap:8px;border:1.5px solid var(--g2);background:#fff;padding:9px 14px;border-radius:12px;cursor:pointer;font-weight:700;color:var(--navy);font-family:inherit;font-size:12.5px;transition:.15s}
+.reg-tab .n{font-size:10.5px;font-weight:800;background:var(--g1);color:var(--g6);border-radius:10px;padding:1px 7px}
+.reg-tab:hover{border-color:rgba(42,191,191,.5)}
+.reg-tab.on{background:var(--navy);border-color:var(--navy);color:#fff}.reg-tab.on .n{background:rgba(255,255,255,.15);color:#fff}
+.reg-tab.farm.on{background:#7D3C98;border-color:#7D3C98}
+.cat-tag{display:inline-block;font-size:9.5px;font-weight:800;border-radius:8px;padding:2px 8px;margin-right:8px;vertical-align:1px;white-space:nowrap}
+.ct-cons{background:#DCEAFB;color:#1f5fae}.ct-serv{background:#FDF0D2;color:#9a6a06}.ct-proc{background:#DFF3E5;color:#1c7a41}.ct-farm{background:#F5F0FC;color:#7D3C98}
+@media (max-width:560px){.reg-tabs{display:grid;grid-template-columns:1fr 1fr}.reg-tab{padding:8px 10px;font-size:12px;justify-content:space-between}}
 .split-pago-row{flex:1 1 100%;display:flex;align-items:center;gap:10px;margin-top:4px;padding-top:6px;border-top:1px dashed var(--g2);flex-wrap:wrap}
 .split-pago-row label{display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;color:var(--g6)}
 .split-pago-row input{border:1px solid rgba(42,191,191,.5);border-radius:6px;padding:4px 6px;font-size:12.5px;width:90px;text-align:right;font-family:inherit;color:var(--navy)}
@@ -1947,10 +1956,17 @@ function renderRegistro() {
    → medio de pago (+2do pago con cuadre) → notas → factura / no vino → barra fija con el resumen en vivo.
    Cada servicio se guarda como una consulta (con su "Atendido por" y su monto) y cada producto como una venta de farmacia.
    El precio de lista se pone solo; si no eres admin no se puede cambiar (la base también lo exige). */
-const REG_FILTROS = [['todos', 'Todos'], ['serv', '🩺 Servicios'], ['farm', '💊 Farmacia']];
+/* Pestañas de categoría (opción B de la maqueta). Servicios = laboratorio y cualquier categoría nueva que agregue el admin. */
+const REG_TABS = [
+  { k: 'cons', t: '🩺 Consultas', motivos: ['Consulta'] },
+  { k: 'serv', t: '🧪 Servicios', motivos: null },
+  { k: 'proc', t: '🔬 Procedimientos', motivos: ['Procedimientos', 'Cirugías'] },
+  { k: 'farm', t: '💊 Farmacia', farm: true }];
+const tabDeMotivo = m => (REG_TABS.find(t => t.motivos && t.motivos.includes(m)) || REG_TABS[1]).k;
+const nombreCat = c => c === 'Estudio de Laboratorio' ? 'Laboratorio' : c;
+const CLS_CAT = { cons: 'ct-cons', serv: 'ct-serv', proc: 'ct-proc', farm: 'ct-farm' };
 function htmlRegistro(p) {
   const medios = opt(CATALOGOS.mediosPago, 'Seleccionar…');
-  const filtros = REG_FILTROS;
   return '' +
   '<div class="form-grid">' +
     '<div class="form-group"><label for="' + p + '-fecha">Fecha</label><input type="date" id="' + p + '-fecha"></div>' +
@@ -1959,7 +1975,7 @@ function htmlRegistro(p) {
     '<div class="form-group"><label for="' + p + '-tel">Teléfono</label><input type="tel" id="' + p + '-tel" inputmode="tel" placeholder="10 dígitos" maxlength="15"></div>' +
     '<div class="form-group full"><label>Servicios y productos <span class="req-badge">al menos uno</span></label>' +
       '<div class="a-box">' +
-        '<div class="a-filtros" id="' + p + '-filtros">' + filtros.map(([k, t]) => '<button type="button" class="a-filtro-btn' + (k === 'serv' ? ' active' : '') + '" data-cat="' + esc(k) + '">' + esc(t) + '</button>').join('') + '</div>' +
+        '<div class="reg-tabs" id="' + p + '-filtros"></div><div class="a-filtros" id="' + p + '-subs"></div>' +
         '<input class="a-search" type="text" id="' + p + '-buscar" placeholder="🔎 Buscar servicio o producto de farmacia..." autocomplete="off">' +
         '<div class="a-grid" id="' + p + '-grid"></div>' +
         '<div class="a-seleccion"><div class="a-seleccion-titulo">Seleccionados y su valor cobrado</div><div id="' + p + '-sel"></div></div>' +
@@ -1989,7 +2005,7 @@ function htmlRegistro(p) {
 }
 function initRegistro(cont, p) {
   cont.innerHTML = htmlRegistro(p);
-  const F = FORMS[p] = { pac: null, sel: new Map(), cat: 'serv', splitManual: false, busy: false, acIdx: -1, acRows: [], ultDoc: '' };
+  const F = FORMS[p] = { pac: null, sel: new Map(), cat: 'cons', subcat: '', splitManual: false, busy: false, acIdx: -1, acRows: [], ultDoc: '' };
   const g = id => $(p + '-' + id);
   const esFarmKey = k => k.startsWith('f:');
   const P1 = () => g('p1').value, P2 = () => g('p2').value, seg = () => !g('g-p2').classList.contains('hide');
@@ -2002,14 +2018,25 @@ function initRegistro(cont, p) {
   const refTxt = pr => pr == null ? 'precio libre' : 'ref. ' + fmt0(pr);
 
   /* Cuadrícula: servicios (por categoría) y productos de farmacia */
+  const enTab = k => k === 'farm' ? PRODUCTOS.filter(x => x.activo).map(x => ({ k: 'f:' + x.id, nombre: x.nombre, precio: x.precio, sub: x.categoria }))
+    : CATALOGO.filter(c => c.activo && tabDeMotivo(c.motivo) === k).map(c => ({ k: c.id, nombre: c.tipo_consulta, precio: c.precio, sub: c.motivo }));
+  function pintarTabs() {
+    g('filtros').innerHTML = REG_TABS.map(t => '<button type="button" class="reg-tab' + (t.farm ? ' farm' : '') + (F.cat === t.k ? ' on' : '') + '" data-cat="' + t.k + '">' + esc(t.t) + ' <span class="n">' + enTab(t.k).length + '</span></button>').join('');
+    g('filtros').querySelectorAll('[data-cat]').forEach(b => b.onclick = () => { F.cat = b.dataset.cat; F.subcat = ''; g('buscar').value = ''; pintarGrid(); });
+  }
   function pintarGrid() {
-    const toks = normTxt(g('buscar').value).split(' ').filter(Boolean), cat = F.cat;
-    const okTxt = s => toks.every(t => normTxt(s).includes(t));
-    const items = [];
-    if (cat !== 'farm') CATALOGO.filter(c => c.activo && okTxt(c.tipo_consulta)).slice().sort((a, b) => a.tipo_consulta.localeCompare(b.tipo_consulta, 'es'))
-      .forEach(c => items.push({ k: c.id, nombre: c.tipo_consulta, ref: refTxt(c.precio) }));
-    if (cat !== 'serv') PRODUCTOS.filter(x => x.activo && okTxt(x.nombre))
-      .forEach(x => items.push({ k: 'f:' + x.id, nombre: x.nombre, ref: refTxt(x.precio) }));
+    pintarTabs();
+    const toks = normTxt(g('buscar').value).split(' ').filter(Boolean), cat = F.cat, todos = enTab(cat);
+    const subs = [...new Set(todos.map(x => x.sub))].sort((a, b) => a.localeCompare(b, 'es'));
+    if (subs.length > 1) {
+      g('subs').innerHTML = '<button type="button" class="a-filtro-btn' + (!F.subcat ? ' active' : '') + '" data-sub="">Todas</button>' +
+        subs.map(c => '<button type="button" class="a-filtro-btn' + (F.subcat === c ? ' active' : '') + '" data-sub="' + esc(c) + '">' + esc(nombreCat(c)) + '</button>').join('');
+      g('subs').querySelectorAll('[data-sub]').forEach(b => b.onclick = () => { F.subcat = b.dataset.sub; pintarGrid(); });
+    } else g('subs').innerHTML = '';
+    const tab = REG_TABS.find(t => t.k === cat);
+    g('buscar').placeholder = '🔎 Buscar en ' + tab.t.replace(/^\S+\s/, '') + (F.subcat ? ' · ' + nombreCat(F.subcat) : '') + '…';
+    const items = todos.filter(x => (!F.subcat || x.sub === F.subcat) && toks.every(t => normTxt(x.nombre).includes(t)))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')).map(x => ({ k: x.k, nombre: x.nombre, ref: refTxt(x.precio) }));
     if (!items.length) { g('grid').innerHTML = '<div class="a-empty">Sin resultados</div>'; return; }
     g('grid').innerHTML = items.map(it => '<label class="a-chip' + (F.sel.has(it.k) ? ' on' : '') + '" data-k="' + esc(it.k) + '"><input type="checkbox"' + (F.sel.has(it.k) ? ' checked' : '') + '>' +
       '<div><div class="nom">' + esc(it.nombre) + '</div><div class="ref">' + esc(it.ref) + '</div></div></label>').join('');
@@ -2029,7 +2056,9 @@ function initRegistro(cont, p) {
     g('sel').innerHTML = [...F.sel.entries()].map(([k, v]) => {
       const farm = esFarmKey(k), it = farm ? prod(k.slice(2)) : serv(k), pr = it ? it.precio : null, lock = pr != null && !ES_ADMIN();
       const docSel = '<select class="atendido-select" title="' + (farm ? '¿Quién generó la venta?' : '¿Quién atendió este servicio?') + '"' + (ES_DOCTORA() ? ' disabled' : '') + '>' + opDocs(v.doc).replace('Seleccionar...', farm ? 'Vendido por...' : 'Seleccionar...') + '</select>';
-      const nom = '<div class="nom">' + esc(it ? (farm ? it.nombre : it.tipo_consulta) : '(ya no disponible)') + '<span class="ref">' + refTxt(pr) + '</span></div>';
+      const tk = farm ? 'farm' : it ? tabDeMotivo(it.motivo) : 'serv';
+      const etiqueta = '<span class="cat-tag ' + CLS_CAT[tk] + '">' + esc(farm ? '💊 Farmacia' : it ? nombreCat(it.motivo) : '—') + '</span>';
+      const nom = '<div class="nom">' + etiqueta + esc(it ? (farm ? it.nombre : it.tipo_consulta) : '(ya no disponible)') + '<span class="ref">' + refTxt(pr) + '</span></div>';
       const sub = subtotal(k, v), m1 = v.m1 == null ? sub : num(v.m1);
       const split = verSplit() ? '<div class="split-pago-row"><label>1er pago de ' + (farm ? 'este producto' : 'este servicio') + ' $<input type="number" class="split1-input" min="0" max="' + sub + '" step="0.01" placeholder="0.00" value="' + esc(m1.toFixed(2)) + '"></label>' +
         '<span class="split2-preview">2do pago: ' + money(Math.max(sub - m1, 0)) + '</span></div>' : '';
@@ -2148,7 +2177,6 @@ function initRegistro(cont, p) {
   });
   g('pac').addEventListener('blur', () => setTimeout(cerrarAc, 150));
   g('tel').addEventListener('input', () => { const v = soloDigitos(g('tel').value); if (v !== g('tel').value) g('tel').value = v; });
-  g('filtros').querySelectorAll('[data-cat]').forEach(b => b.onclick = () => { F.cat = b.dataset.cat; g('filtros').querySelectorAll('[data-cat]').forEach(x => x.classList.toggle('active', x === b)); pintarGrid(); });
   g('buscar').addEventListener('input', pintarGrid);
   g('b2').onclick = () => setSegundo(true); g('q2').onclick = () => setSegundo(false);
   g('p1').onchange = () => { pintarSel(); }; g('p2').onchange = () => { pintarSel(); };
