@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="app-version" content="2026.10.30-8"/>
+<meta name="app-version" content="2026.11.02-1"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>UMANA Productividad</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1135,6 +1135,12 @@ body.en-auth .wmk{color:rgba(255,255,255,.4)}
 .chart-empty-msg{display:flex;align-items:center;justify-content:center;height:100%;color:var(--g6);font-size:12px}
 @media (max-width:560px){.nw-r{grid-template-columns:90px minmax(0,1fr) 80px}}
 
+.tel-wrap{display:flex;gap:6px;min-width:0}
+.tel-wrap .tel-lada{flex:0 0 92px;width:92px;padding-left:8px;padding-right:4px}
+.tel-wrap input{flex:1;min-width:0}
+#body-registro .tel-wrap select,#body-registro .tel-wrap input{background:#fff;border:1px solid var(--g2);border-radius:8px;padding:9px 12px;color:var(--navy);font-size:13px;font-family:inherit;outline:none}
+#body-registro .tel-wrap .tel-lada{padding:9px 4px 9px 8px}
+#body-registro .tel-wrap input:focus,#body-registro .tel-wrap select:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(42,191,191,.14)}
 </style>
 </head>
 <body>
@@ -1421,7 +1427,7 @@ const CLINICA = 'UMANA Ginecología';
 
 /* Catálogos editables (una sola constante) */
 const CATALOGOS = {
-  mediosPago: ['Efectivo', 'Tarjeta', 'Transferencia', 'Cortesía'],
+  mediosPago: ['Efectivo', 'Tarjeta Crédito', 'Tarjeta Débito', 'Transferencia', 'Cortesía'],
   categoriasGasto: ['locativos', 'nóminas', 'insumos médicos', 'farmacia', 'papelería', 'otros'],
   mediosGasto: ['efectivo', 'transferencia', 'depósito']
 };
@@ -1772,7 +1778,7 @@ const ingreso = c => c.no_vino ? 0 : num(num(c.monto) + num(c.monto_2));
 const efectivoDe = c => c.no_vino ? 0 : num((c.medio_pago === 'Efectivo' ? num(c.monto) : 0) + (c.medio_pago_2 === 'Efectivo' ? num(c.monto_2) : 0));
 const pagosDe = c => { const a = []; if (c.no_vino) return a; if (c.medio_pago) a.push([c.medio_pago, num(c.monto)]); if (c.medio_pago_2) a.push([c.medio_pago_2, num(c.monto_2)]); return a; };
 const sumar = (arr, f) => num(arr.reduce((s, x) => s + f(x), 0));
-const stCls = m => ({ Efectivo: 'st-ef', Tarjeta: 'st-ta', Transferencia: 'st-tr', 'Cortesía': 'st-co' }[m] || 'st-fa');
+const stCls = m => ({ Efectivo: 'st-ef', Tarjeta: 'st-ta', 'Tarjeta Crédito': 'st-ta', 'Tarjeta Débito': 'st-ta', Transferencia: 'st-tr', 'Cortesía': 'st-co' }[m] || 'st-fa');
 const servicioTxt = c => c._farm ? 'Farmacia: ' + c.descripcion : (c.tipo_consulta || c.motivo || '') + (c.descripcion ? ': ' + c.descripcion : '');
 
 /* ── Fechas ── */
@@ -1791,6 +1797,51 @@ const opt = (arr, ph, val) => (ph != null ? '<option value="">' + esc(ph) + '</o
   return '<option value="' + esc(v) + '"' + (val === v ? ' selected' : '') + '>' + esc(t) + '</option>';
 }).join('');
 const hayModalAbierto = () => !!document.querySelector('.modal-overlay2.show');
+
+/* ── Teléfono con lada internacional (México por defecto) ──
+   Se guarda: México → 10 dígitos (como siempre); otro país → "+" + lada + número (formato internacional). */
+const LADAS = [['52', '🇲🇽 +52'], ['1', '🇺🇸 +1'], ['57', '🇨🇴 +57'], ['34', '🇪🇸 +34'], ['54', '🇦🇷 +54'], ['56', '🇨🇱 +56'], ['51', '🇵🇪 +51'], ['58', '🇻🇪 +58'],
+  ['593', '🇪🇨 +593'], ['502', '🇬🇹 +502'], ['503', '🇸🇻 +503'], ['504', '🇭🇳 +504'], ['505', '🇳🇮 +505'], ['506', '🇨🇷 +506'], ['507', '🇵🇦 +507'], ['53', '🇨🇺 +53'],
+  ['598', '🇺🇾 +598'], ['595', '🇵🇾 +595'], ['591', '🇧🇴 +591'], ['55', '🇧🇷 +55'], ['44', '🇬🇧 +44'], ['33', '🇫🇷 +33'], ['49', '🇩🇪 +49'], ['39', '🇮🇹 +39'], ['otro', '🌐 Otra']];
+const LADA_NOMBRE = { '52': 'México', '1': 'EE. UU. / Canadá', '57': 'Colombia', '34': 'España', '54': 'Argentina', '56': 'Chile', '51': 'Perú', '58': 'Venezuela', '593': 'Ecuador', '502': 'Guatemala', '503': 'El Salvador', '504': 'Honduras', '505': 'Nicaragua', '506': 'Costa Rica', '507': 'Panamá', '53': 'Cuba', '598': 'Uruguay', '595': 'Paraguay', '591': 'Bolivia', '55': 'Brasil', '44': 'Reino Unido', '33': 'Francia', '49': 'Alemania', '39': 'Italia', otro: 'Otro país (escribe la lada en el número)' };
+function telHtml(p, cls) {
+  return '<div class="tel-wrap"><select class="' + (cls || '') + ' tel-lada" id="' + p + '-lada" aria-label="Lada del país">' +
+    LADAS.map(([v, t]) => '<option value="' + v + '" title="' + esc(LADA_NOMBRE[v]) + '"' + (v === '52' ? ' selected' : '') + '>' + t + '</option>').join('') + '</select>' +
+    '<input class="' + (cls || '') + '" type="tel" id="' + p + '-tel" inputmode="tel" placeholder="10 dígitos" maxlength="20" autocomplete="off"></div>';
+}
+function telInit(p) {
+  const l = $(p + '-lada'), t = $(p + '-tel');
+  const ph = () => { t.placeholder = l.value === '52' ? '10 dígitos' : l.value === 'otro' ? 'Lada + número' : 'Número'; l.title = LADA_NOMBRE[l.value] || ''; };
+  l.addEventListener('change', ph);
+  t.addEventListener('input', () => {
+    let v = String(t.value || '');
+    if (/^\s*\+/.test(v)) { telCargar(p, '+' + soloDigitos(v)); return; }      // pegaron un número internacional completo
+    v = soloDigitos(v); if (v !== t.value) t.value = v;
+  });
+  ph();
+}
+function telCargar(p, guardado) {
+  const l = $(p + '-lada'), t = $(p + '-tel'), s = String(guardado || '');
+  if (!s.startsWith('+')) { l.value = '52'; t.value = soloDigitos(s); }
+  else {
+    const d = soloDigitos(s), cod = LADAS.map(x => x[0]).filter(x => x !== 'otro' && d.startsWith(x)).sort((a, b) => b.length - a.length)[0];
+    if (cod === '52' && d.length === 12) { l.value = '52'; t.value = d.slice(2); }
+    else if (cod) { l.value = cod; t.value = d.slice(cod.length); } else { l.value = 'otro'; t.value = d; }
+  }
+  l.dispatchEvent(new Event('change'));
+}
+function telValor(p) {
+  const l = $(p + '-lada').value, d = soloDigitos($(p + '-tel').value);
+  if (!d) return '';
+  return l === '52' ? d : '+' + (l === 'otro' ? '' : l) + d;
+}
+function telError(p) {          // '' si está bien (o vacío); si no, el texto de lo que falta
+  const l = $(p + '-lada').value, d = soloDigitos($(p + '-tel').value);
+  if (!d) return '';
+  if (l === '52') return d.length === 10 ? '' : 'teléfono de 10 dígitos (México)';
+  const total = (l === 'otro' ? '' : l).length + d.length;
+  return d.length >= 6 && total >= 8 && total <= 15 ? '' : 'teléfono válido (' + (l === 'otro' ? 'lada + número' : LADA_NOMBRE[l]) + ', hasta 15 dígitos con lada)';
+}
 
 /* ════════ Formulario de consulta (Registro y Editar comparten componente; diseño de CUIVAN) ════════ */
 const FORMS = {};
@@ -1813,7 +1864,7 @@ function htmlFormConsulta(p, modo) {
       '<input class="app-input" id="' + p + '-pac" placeholder="Nombre completo" autocomplete="off">' +
       '<div class="ac-list hide" id="' + p + '-ac"></div>' +
       '<div class="hint hide" id="' + p + '-newpac">📋 Paciente nueva: se dará de alta al guardar (se busca por teléfono + nombre para no duplicar).</div></div>' +
-    '<div class="fi2"><label class="lbl2" for="' + p + '-tel">Teléfono <span style="color:#e53e3e">*</span></label><input class="app-input" type="tel" id="' + p + '-tel" inputmode="tel" placeholder="10 dígitos" maxlength="15"></div>' +
+    '<div class="fi2"><label class="lbl2" for="' + p + '-tel">Teléfono <span style="color:#e53e3e">*</span></label>' + telHtml(p, 'app-input') + '</div>' +
     '<div class="b1-summary b1-tall"><div class="se">Resumen en vivo</div><div class="sv" id="' + p + '-spac">Sin nombre aún</div>' +
       '<div class="sm" id="' + p + '-sserv">—</div><div class="sm" id="' + p + '-spag">—</div>' +
       '<div class="sm" id="' + p + '-stot" style="font-weight:700;color:var(--teal);font-size:13px">$0.00</div>' +
@@ -1912,7 +1963,7 @@ function initFormConsulta(cont, p, modo, consulta, onSaved) {
   /* Autocompletar de pacientes (la base solo devuelve las que cada rol puede ver) */
   let acTimer = null, acSeq = 0;
   function cerrarAc() { g('ac').classList.add('hide'); F.acIdx = -1; }
-  function elegirPac(r) { F.pac = r; g('pac').value = r.nombre; g('tel').value = r.telefono || ''; g('newpac').classList.add('hide'); cerrarAc(); resumen(); }
+  function elegirPac(r) { F.pac = r; g('pac').value = r.nombre; telCargar(p, r.telefono); g('newpac').classList.add('hide'); cerrarAc(); resumen(); }
   g('pac').addEventListener('input', () => {
     F.pac = null; resumen();
     const q = g('pac').value.trim();
@@ -1954,10 +2005,10 @@ function initFormConsulta(cont, p, modo, consulta, onSaved) {
   g('nv').onchange = () => { tocar(); ajustar(); aplicarPrecio(false); resumen(); };
   g('m2').addEventListener('input', () => { tocar(); aplicarPrecio(false); });
   ['doc', 'm1', 'm2', 'desc'].forEach(id => g(id).addEventListener('input', resumen));
-  g('tel').addEventListener('input', () => { const v = soloDigitos(g('tel').value); if (v !== g('tel').value) g('tel').value = v; });
+  telInit(p);
 
   function limpiar() {
-    ['pac', 'tel', 'desc', 'm1', 'm2', 'nfac', 'rec', 'notas'].forEach(i => g(i).value = '');
+    ['pac', 'desc', 'm1', 'm2', 'nfac', 'rec', 'notas'].forEach(i => g(i).value = ''); telCargar(p, '');
     if (!ES_DOCTORA()) g('doc').value = '';
     g('cat').value = ''; g('tipo').value = ''; llenarTipos(); g('p1').value = ''; g('p2').value = ''; pintarDesc(); F.toco = true;
     F.pac = null; g('fac').checked = false; g('nv').checked = false; g('fac').onchange();
@@ -1970,10 +2021,11 @@ function initFormConsulta(cont, p, modo, consulta, onSaved) {
     if (ES_DOCTORA()) g('doc').value = PERFIL.nombre;
     if (!c) return;
     g('doc').value = nombreDoctora(c.doctor_id);
-    if (c.paciente) { F.pac = { id: c.paciente.id, nombre: c.paciente.nombre, telefono: c.paciente.telefono }; g('pac').value = c.paciente.nombre; g('tel').value = c.paciente.telefono || ''; }
+    if (c.paciente) { F.pac = { id: c.paciente.id, nombre: c.paciente.nombre, telefono: c.paciente.telefono }; g('pac').value = c.paciente.nombre; telCargar(p, c.paciente.telefono); }
     const s = F.servs.find(x => x.motivo === c.motivo && x.tipo === (c.tipo_consulta || '')); g('cat').value = s ? s.motivo : ''; llenarTipos(); g('tipo').value = s ? s.t : ''; pintarDesc();
     g('desc').value = c.descripcion || '';
     g('nv').checked = !!c.no_vino;
+    ['p1', 'p2'].forEach(k => { const v = k === 'p1' ? c.medio_pago : c.medio_pago_2; if (v && ![...g(k).options].some(o => o.value === v)) g(k).insertAdjacentHTML('beforeend', '<option value="' + esc(v) + '">' + esc(v) + ' (sin detalle)</option>'); });
     g('p1').value = c.medio_pago || ''; g('m1').value = c.no_vino ? '' : num(c.monto).toFixed(2);
     if (c.medio_pago_2) { setSegundo(true); g('p2').value = c.medio_pago_2; g('m2').value = num(c.monto_2).toFixed(2); }
     g('fac').checked = !!c.factura; g('fac').onchange(); g('nfac').value = c.num_factura || '';
@@ -1985,11 +2037,10 @@ function initFormConsulta(cont, p, modo, consulta, onSaved) {
     const marca = (id, t) => { g(id).classList.add('bad'); falt.push(t); };
     const fecha = g('fecha').value;
     if (!fecha) marca('fecha', 'fecha'); else if (fecha > todayLocal()) marca('fecha', 'fecha (no puede ser futura)');
-    const d = docSel(); if (!d) marca('doc', 'doctor (elígela de la lista)');
+    const d = docSel(); if (!d) marca('doc', 'doctor (elígelo de la lista)');
     const nom = g('pac').value.replace(/\s+/g, ' ').trim(); if (nom.length < 2) marca('pac', 'paciente');
-    const tel = soloDigitos(g('tel').value);
-    if (!F.pac && nom.length >= 2 && tel.length !== 10) marca('tel', 'teléfono de 10 dígitos para paciente nueva');
-    if (F.pac && tel && tel.length !== 10) marca('tel', 'teléfono de 10 dígitos');
+    const tel = telValor(p), terr = telError(p);
+    if (!F.pac && nom.length >= 2 && !tel) marca('tel', 'teléfono para paciente nueva'); else if (terr) marca('tel', terr);
     if (!g('cat').value) marca('cat', 'categoría');
     const s = servSel(); if (!s) marca('tipo', 'tipo de consulta (elígelo de la lista)');
     if (s && s.desc && !g('desc').value.trim()) marca('desc', g('ldesc').textContent.toLowerCase());
@@ -2100,7 +2151,7 @@ function htmlRegistro(p) {
     '<div class="form-group"><label for="' + p + '-fecha">Fecha</label><input type="date" id="' + p + '-fecha"></div>' +
     '<div class="form-group ac-wrap"><label for="' + p + '-pac">Paciente</label><input type="text" id="' + p + '-pac" placeholder="Nombre completo" autocomplete="off">' +
       '<div class="ac-list hide" id="' + p + '-ac"></div><div class="hint hide" id="' + p + '-newpac">📋 Paciente nueva: se dará de alta al guardar (se busca por teléfono + nombre para no duplicar).</div></div>' +
-    '<div class="form-group"><label for="' + p + '-tel">Teléfono</label><input type="tel" id="' + p + '-tel" inputmode="tel" placeholder="10 dígitos" maxlength="15"></div>' +
+    '<div class="form-group"><label for="' + p + '-tel">Teléfono</label>' + telHtml(p, '') + '</div>' +
     '<div class="form-group full"><label>Servicios y productos <span class="req-badge">al menos uno</span></label>' +
       '<div class="a-box">' +
         '<div class="reg-tabs" id="' + p + '-filtros"></div><div class="a-filtros" id="' + p + '-subs"></div>' +
@@ -2275,7 +2326,7 @@ function initRegistro(cont, p) {
   /* Autocompletar de pacientes (la base solo devuelve las que cada rol puede ver) */
   let acTimer = null, acSeq = 0;
   function cerrarAc() { g('ac').classList.add('hide'); F.acIdx = -1; }
-  function elegirPac(r) { F.pac = r; g('pac').value = r.nombre; g('tel').value = r.telefono || ''; g('newpac').classList.add('hide'); cerrarAc(); resumen(); }
+  function elegirPac(r) { F.pac = r; g('pac').value = r.nombre; telCargar(p, r.telefono); g('newpac').classList.add('hide'); cerrarAc(); resumen(); }
   g('pac').addEventListener('input', () => {
     F.pac = null; resumen();
     const q = g('pac').value.trim();
@@ -2304,7 +2355,7 @@ function initRegistro(cont, p) {
     if (e.key === 'Escape') cerrarAc();
   });
   g('pac').addEventListener('blur', () => setTimeout(cerrarAc, 150));
-  g('tel').addEventListener('input', () => { const v = soloDigitos(g('tel').value); if (v !== g('tel').value) g('tel').value = v; });
+  telInit(p);
   g('buscar').addEventListener('input', pintarGrid);
   g('b2').onclick = () => setSegundo(true); g('q2').onclick = () => setSegundo(false);
   g('p1').onchange = () => { pintarSel(); }; g('p2').onchange = () => { pintarSel(); };
@@ -2314,7 +2365,7 @@ function initRegistro(cont, p) {
   g('nv').onchange = () => { ['p1', 'p2', 'm1', 'm2', 'b2'].forEach(id => g(id).disabled = nv()); repartirMontos(); resumen(); };
 
   function limpiar() {
-    ['pac', 'tel', 'notas', 'nfac', 'buscar'].forEach(i => g(i).value = '');
+    ['pac', 'notas', 'nfac', 'buscar'].forEach(i => g(i).value = ''); telCargar(p, '');
     g('p1').value = ''; F.pac = null; F.sel.clear(); g('fac').checked = false; g('fac').onchange(); g('nv').checked = false; g('nv').onchange();
     g('newpac').classList.add('hide'); g('err').classList.add('hide');
     cont.querySelectorAll('.bad').forEach(e => e.classList.remove('bad'));
@@ -2345,12 +2396,11 @@ function initRegistro(cont, p) {
     const fecha = g('fecha').value;
     if (!fecha) marca(g('fecha'), 'fecha'); else if (fecha > todayLocal()) marca(g('fecha'), 'fecha (no puede ser futura)');
     const nS = [...F.sel.keys()].filter(k => !esFarmKey(k)).length, nF = F.sel.size - nS;
-    const nom = g('pac').value.replace(/\s+/g, ' ').trim(), tel = soloDigitos(g('tel').value);
+    const nom = g('pac').value.replace(/\s+/g, ' ').trim(), tel = telValor(p), terr = telError(p);
     if (!F.sel.size) marca(g('buscar'), 'al menos un servicio o producto');
     if (nS && nom.length < 2) marca(g('pac'), 'paciente');
     if (nom && nom.length < 2) marca(g('pac'), 'nombre de paciente');
-    if (!F.pac && nom.length >= 2 && tel.length !== 10) marca(g('tel'), 'teléfono de 10 dígitos para paciente nueva');
-    if (F.pac && tel && tel.length !== 10) marca(g('tel'), 'teléfono de 10 dígitos');
+    if (!F.pac && nom.length >= 2 && !tel) marca(g('tel'), 'teléfono para paciente nueva'); else if (terr) marca(g('tel'), terr);
     if (nv() && nF) marca(null, 'quita los productos de farmacia: "no vino" solo aplica a servicios');
     F.sel.forEach((v, k) => {
       const row = g('sel').querySelector('.a-row[data-k="' + k + '"]'), farm = esFarmKey(k);
@@ -2437,7 +2487,7 @@ async function borrarVentaFarmacia(v) {
 
 /* ════════ HISTORIAL (diseño de Skin Fabric / CUIVAN) ════════ */
 const H = { per: null, sel: 'hoy', rows: [], q: '', doc: '', mot: '', med: '', tg: new Set(), limite: 200, cargando: false, seq: 0, papelera: false, farm: false };
-const PAGO_ICON = { Efectivo: '💵', Tarjeta: '💳', Transferencia: '🏦', 'Cortesía': '🎁' };
+const PAGO_ICON = { Efectivo: '💵', Tarjeta: '💳', 'Tarjeta Crédito': '💳', 'Tarjeta Débito': '💳', Transferencia: '🏦', 'Cortesía': '🎁' };
 const iconoPago = m => m ? (PAGO_ICON[m] || '💰') + ' ' : '';
 function perDia(d) { return { tipo: 'dia', d, h: d, lbl: d === todayLocal() ? 'Hoy' : d === addDays(todayLocal(), -1) ? 'Ayer' : diaNombre(d) + ' ' + fmtD(d) }; }
 const RANGOS_HIST = [
@@ -2813,6 +2863,8 @@ const C = { modo: 'dia', dia: null, mes: null, doc: '', vista: 'cierre-por-docto
 const MEDIO_COLORES = {
   efectivo: { bg: '#EAF7EE', border: '#A8D8B4', fg: '#2E7D4F', bar: '#2E7D4F', ico: '💵' },
   tarjeta: { bg: '#EEF5FC', border: '#BDD5F0', fg: '#1B5C9E', bar: '#1B5C9E', ico: '💳' },
+  'tarjeta credito': { bg: '#EEF5FC', border: '#BDD5F0', fg: '#1B5C9E', bar: '#1B5C9E', ico: '💳' },
+  'tarjeta debito': { bg: '#F0EEFA', border: '#C9C2E8', fg: '#5B4FA8', bar: '#5B4FA8', ico: '💳' },
   transferencia: { bg: '#FDF6EC', border: '#EDD49A', fg: '#9A6010', bar: '#9A6010', ico: '🏦' },
   cortesia: { bg: '#F5F0FC', border: '#D2B4DE', fg: '#7D3C98', bar: '#7D3C98', ico: '🎁' }
 };
@@ -3830,7 +3882,7 @@ function pintarPRM() {
         '<td data-l="Debería volver"><div>' + (x.vence ? fmtD(x.vence) + '<div>' + est(x) + '</div>' : est(x)) + '</div></td>' +
         '<td data-l="Última gestión">' + (x.g ? '<div>' + fmtD(x.g.fecha) + ' · ' + esc((TIPOS_GESTION.find(t => t[0] === x.g.tipo) || ['', x.g.tipo])[1]) + '<div class="sub2">' + esc(x.g.resultado || '') + (x.contactada ? ' · ✓ contactada' : '') + '</div></div>' : '<span class="muted">Sin gestiones</span>') + '</td>' +
         '<td data-l="Acciones"><span style="display:inline-flex;gap:5px">' +
-          (tel.length === 10 ? '<a class="ic" style="display:inline-flex;align-items:center;text-decoration:none" title="Abrir WhatsApp" target="_blank" rel="noopener" href="https://wa.me/52' + tel + '">💬</a>' : '') +
+          (tel.length === 10 || (String(x.pac.telefono || '').startsWith('+') && tel.length >= 8) ? '<a class="ic" style="display:inline-flex;align-items:center;text-decoration:none" title="Abrir WhatsApp" target="_blank" rel="noopener" href="https://wa.me/' + (tel.length === 10 && !String(x.pac.telefono).startsWith('+') ? '52' : '') + tel + '">💬</a>' : '') +
           '<button class="btn btn-g btn-sm" data-pac="' + esc(x.pac.id) + '">Ver y registrar</button></span></td></tr>';
     }).join('') : '<tr><td colspan="5" class="empty">' + (P.estado === 'vencida' ? 'No hay pacientes vencidas con estos filtros.' : 'Sin pacientes en esta vista.') + '</td></tr>';
     $('prm-more').classList.toggle('hide', rows.length <= P.limite);
