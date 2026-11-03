@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="app-version" content="2026.11.03-3"/>
+<meta name="app-version" content="2026.11.03-4"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>UMANA Productividad</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1156,6 +1156,10 @@ body.en-auth .wmk{color:rgba(255,255,255,.4)}
 .hist-chip.c-cons .ico{background:#D9F4F4}
 #hist-tbody tr.hist-farm-row td{background:#FCF9FE}
 #hist-tbody tr.hist-farm-row td:first-child,#hist-tbody tr.hist-farm-row{border-left-color:#7D3C98}
+.ef-tot{font-family:var(--font-d);font-weight:800;font-size:20px;color:#7D3C98;padding:4px 0}
+.row4.ef-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:820px){.row4.ef-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.row4.ef-grid{grid-template-columns:1fr}.row4.ef-grid>.fi2{grid-column:auto!important}}
 </style>
 </head>
 <body>
@@ -2704,11 +2708,12 @@ function pintarHistorial() {
         '<td data-l="Pago">' + pago + '</td>' +
         '<td data-l="N° Factura"><input type="text" class="hist-inline-factura' + (c.factura && !c.num_factura ? ' pendiente' : '') + (c.num_factura ? ' ok' : '') + '" data-fac="' + esc(c.id) + '" value="' + esc(c.num_factura || '') + '" placeholder="' + (c.factura ? 'Pendiente' : '—') + '" maxlength="40" aria-label="Número de factura"></td>' +
         '<td data-l="Acciones"><span style="display:inline-flex;gap:5px">' + (c._farm
-          ? '<button class="sbtn btn-del" type="button" title="Eliminar venta" data-delf="' + esc(c.id) + '">🗑</button>'
+          ? '<button class="sbtn btn-edit" type="button" title="Editar venta" data-edf="' + esc(c.id) + '">✏️</button><button class="sbtn btn-del" type="button" title="Eliminar venta" data-delf="' + esc(c.id) + '">🗑</button>'
           : '<button class="sbtn btn-edit" type="button" title="Editar" data-ed="' + esc(c.id) + '">✏️</button><button class="sbtn btn-del" type="button" title="Mandar a papelera" data-del="' + esc(c.id) + '">🗑</button>') + '</span></td></tr>';
     }).join('');
     $('h-more').classList.toggle('hide', rows.length <= H.limite);
     $('hist-tbody').querySelectorAll('[data-ed]').forEach(x => x.onclick = () => abrirEditar(H.rows.find(c => c.id === x.dataset.ed)));
+    $('hist-tbody').querySelectorAll('[data-edf]').forEach(x => x.onclick = () => abrirEditarFarm(H.rows.find(c => c.id === x.dataset.edf)));
     $('hist-tbody').querySelectorAll('[data-del]').forEach(x => x.onclick = () => mandarAPapelera(H.rows.find(c => c.id === x.dataset.del)));
     $('hist-tbody').querySelectorAll('[data-delf]').forEach(x => x.onclick = async () => {
       const c = H.rows.find(r => r.id === x.dataset.delf);
@@ -2731,8 +2736,136 @@ async function guardarFolio(inp) {
   if (error || !data || !data.length) { inp.value = c.num_factura || ''; return toast('No se pudo guardar el folio: ' + traducirError(error || 'sin permiso')); }
   Object.assign(c, data[0]); toast(v ? 'Folio guardado.' : 'Folio borrado.');
 }
+/* ── Editar una venta de farmacia desde el Historial (como Skin) ──
+   Se corrige fecha, quién vendió, paciente (nombre/teléfono), producto, cantidad, precio (solo admin si tiene precio de lista),
+   pagos, factura y notas. La base vuelve a validar precio de lista y cuadre (cantidad × precio = lo cobrado). */
+async function abrirEditarFarm(c) {
+  if (!c) return;
+  const r = await sb.from('farmacia_ventas').select(SEL_FARM).eq('id', c.id).limit(1);
+  const v = r.data && r.data[0];
+  if (r.error || !v) { toast('No se pudo abrir la venta: ' + traducirError(r.error || 'no encontrada')); return; }
+  const p = 'ef', g = k => $(p + '-' + k);
+  const medios = CATALOGOS.mediosPago.slice();
+  [v.medio_pago, v.medio_pago_2].forEach(m => { if (m && !medios.includes(m)) medios.push(m); });
+  const optMed = sel => opt(medios.map(m => ({ v: m, t: m === 'Tarjeta' ? 'Tarjeta (sin detalle)' : m })), 'Seleccionar…', sel || '');
+  const prods = PRODUCTOS.filter(x => x.activo || x.id === v.producto_id);
+  const prodDe = nombre => prods.find(x => normTxt(x.nombre) === normTxt(nombre));
+  const docs = DOCTORAS.filter(d => d.activo !== false || d.id === v.doctor_id);
+  const renombra = !ES_DOCTORA();
+  $('ed-t').textContent = '✎ Editar venta de farmacia';
+  $('ed-form').innerHTML =
+    '<div class="row4 ef-grid">' +
+      '<div class="fi2"><label class="lbl2" for="ef-fecha">Fecha</label><input class="app-input" type="date" id="ef-fecha"></div>' +
+      '<div class="fi2"><label class="lbl2" for="ef-doc">Atendido por</label><select class="app-input" id="ef-doc"' + (ES_DOCTORA() ? ' disabled' : '') + '>' + opt(docs.map(d => ({ v: d.id, t: d.nombre })), 'Seleccionar…', v.doctor_id) + '</select></div>' +
+      '<div class="fi2"><label class="lbl2" for="ef-pac">Paciente</label><input class="app-input" id="ef-pac" placeholder="' + (v.paciente ? 'Nombre completo' : 'Sin paciente (mostrador) · opcional') + '" autocomplete="off"' + (v.paciente && !renombra ? ' disabled' : '') + '>' +
+        (v.paciente && renombra ? '<div class="hint" style="display:block">✎ Si corriges el nombre, se actualiza en todas sus consultas y compras.</div>' : '') + '</div>' +
+      '<div class="fi2"><label class="lbl2" for="ef-tel">Teléfono</label>' + telHtml(p, 'app-input') + '</div>' +
+    '</div>' +
+    '<div class="row4 ef-grid" style="margin-top:12px">' +
+      '<div class="fi2" style="grid-column:span 2"><label class="lbl2" for="ef-prod">💊 Producto</label><input class="app-input" id="ef-prod" list="ef-dl-prod" autocomplete="off"><datalist id="ef-dl-prod">' + prods.map(x => '<option value="' + esc(x.nombre) + '">').join('') + '</datalist><div class="hint" id="ef-cat" style="display:block"></div></div>' +
+      '<div class="fi2"><label class="lbl2" for="ef-cant">Cantidad</label><input class="app-input" type="number" id="ef-cant" min="1" step="1" inputmode="numeric"></div>' +
+      '<div class="fi2"><label class="lbl2" for="ef-pu">Precio unitario</label><div class="mon2"><span>$</span><input class="app-input" type="number" id="ef-pu" min="0" step="0.01" inputmode="decimal" style="padding-left:22px"></div></div>' +
+    '</div>' +
+    '<div class="row4 ef-grid" style="margin-top:12px">' +
+      '<div class="fi2"><label class="lbl2" for="ef-p1">💳 Medio de pago</label><select class="app-input" id="ef-p1">' + optMed(v.medio_pago) + '</select>' +
+        '<button type="button" class="lnk2" id="ef-b2">＋ agregar 2do pago</button>' +
+        '<div class="pago2 hide" id="ef-pago2"><div class="mon2"><span>$</span><input class="app-input" type="number" id="ef-m2" min="0" step="0.01" inputmode="decimal" placeholder="Monto 2" aria-label="Monto del segundo pago" style="padding-left:22px"></div>' +
+          '<select class="app-input" id="ef-p2" aria-label="Medio del segundo pago">' + optMed(v.medio_pago_2) + '</select><button type="button" class="lnk2 quitar" id="ef-q2">quitar ✕</button></div></div>' +
+      '<div class="fi2"><label class="lbl2">Total</label><div class="ef-tot" id="ef-tot">$0.00</div><div class="hint" id="ef-rep" style="display:block"></div></div>' +
+      '<div class="fac2"><label class="cbrow2"><input type="checkbox" id="ef-fac"><span style="font-size:.82rem;font-weight:600">¿Requiere factura?</span></label>' +
+        '<div class="hide" id="ef-wfac" style="margin-top:7px"><label class="lbl2" for="ef-nfac">No. de factura</label><input class="app-input" id="ef-nfac" placeholder="Ej. F-0042" maxlength="40"></div></div>' +
+      '<div class="fi2"><label class="lbl2" for="ef-notas">Notas</label><textarea class="app-input" id="ef-notas" style="min-height:38px;resize:vertical" maxlength="500" placeholder="Opcional..."></textarea></div>' +
+    '</div>' +
+    '<div class="err hide" id="ef-err" style="margin-top:14px"></div>' +
+    '<div style="margin-top:20px;display:flex;gap:8px;flex-wrap:wrap"><button class="appbtn appbtn-p" id="ef-save">Guardar cambios</button><button class="appbtn appbtn-s" id="ef-cancel">Cancelar</button></div>';
+
+  // valores actuales
+  g('fecha').value = v.fecha; g('pac').value = v.paciente ? v.paciente.nombre : '';
+  telInit(p); telCargar(p, v.paciente ? v.paciente.telefono : '');
+  g('prod').value = v.producto || ''; g('cant').value = v.cantidad || 1; g('pu').value = num(v.precio_unitario).toFixed(2);
+  g('fac').checked = !!v.factura; g('nfac').value = v.num_factura || ''; g('wfac').classList.toggle('hide', !v.factura); g('notas').value = v.notas || '';
+  const dos = () => !g('pago2').classList.contains('hide');
+  const setDos = on => { g('pago2').classList.toggle('hide', !on); g('b2').classList.toggle('hide', on); if (!on) { g('m2').value = ''; g('p2').value = ''; } pinta(); };
+  if (v.medio_pago_2 && num(v.monto_2) > 0) { g('pago2').classList.remove('hide'); g('b2').classList.add('hide'); g('m2').value = num(v.monto_2).toFixed(2); }
+
+  const prodActual = () => prodDe(g('prod').value) || (normTxt(g('prod').value) === normTxt(v.producto) ? { id: v.producto_id, nombre: v.producto, categoria: v.categoria, precio: null, _orig: true } : null);
+  const puBloqueado = pr => !ES_ADMIN() && pr && pr.precio != null;
+  const total = () => Math.round(Math.max(0, parseInt(g('cant').value, 10) || 0) * num(g('pu').value) * 100) / 100;
+  function pinta() {
+    const pr = prodActual();
+    g('cat').textContent = pr ? (pr.categoria || 'Sin categoría') + (pr.precio != null ? ' · precio de lista ' + money(pr.precio) : '') : 'Elige un producto del catálogo';
+    g('pu').readOnly = puBloqueado(pr);
+    const t = total(); g('tot').textContent = money(t);
+    g('rep').style.display = dos() ? 'block' : 'none';
+    g('rep').textContent = dos() ? '1er pago ' + money(Math.max(0, t - num(g('m2').value))) + ' · 2do pago ' + money(num(g('m2').value)) : '';
+  }
+  g('prod').addEventListener('input', () => { const pr = prodDe(g('prod').value); if (pr && pr.precio != null) g('pu').value = num(pr.precio).toFixed(2); pinta(); });
+  ['cant', 'pu', 'm2'].forEach(k => g(k).addEventListener('input', pinta));
+  g('b2').onclick = () => setDos(true); g('q2').onclick = () => setDos(false);
+  g('fac').onchange = () => { g('wfac').classList.toggle('hide', !g('fac').checked); if (!g('fac').checked) g('nfac').value = ''; };
+  g('cancel').onclick = () => cerrarModal('m-editar');
+  pinta();
+
+  let busy = false;
+  g('save').onclick = async () => {
+    if (busy) return;
+    const falt = [], err = m => falt.push(m);
+    const pr = prodActual(), cant = parseInt(g('cant').value, 10), pu = num(g('pu').value), t = total();
+    const nom = g('pac').value.replace(/\s+/g, ' ').trim(), tel = telValor(p), terr = telError(p);
+    const docId = ES_DOCTORA() ? v.doctor_id : g('doc').value;
+    if (!g('fecha').value) err('fecha');
+    if (!docId) err('quién atendió');
+    if (!pr) err('producto del catálogo');
+    if (!(cant >= 1)) err('cantidad');
+    if (!(pu >= 0)) err('precio unitario');
+    if (v.paciente && renombra && nom.length < 2) err('nombre de la paciente');
+    if (!v.paciente && nom.length >= 2 && !tel) err('teléfono para la paciente');
+    if (terr) err(terr);
+    if (!g('p1').value) err('medio de pago');
+    const m2 = dos() ? num(g('m2').value) : 0;
+    if (dos() && (!g('p2').value || !(m2 > 0) || m2 >= t)) err('2do pago (medio y monto menor al total)');
+    if (falt.length) { g('err').textContent = 'Falta: ' + falt.join(', ') + '.'; g('err').classList.remove('hide'); return; }
+    g('err').classList.add('hide');
+    busy = true; const btn = g('save'); btn.disabled = true; btn.textContent = 'Guardando…';
+    try {
+      let pacId = v.paciente_id;
+      if (v.paciente && renombra) {
+        const cambios = {};
+        if (nom !== v.paciente.nombre) cambios.nombre = nom;
+        if (tel && tel !== (v.paciente.telefono || '')) cambios.telefono = tel;
+        if (Object.keys(cambios).length) {
+          const rn = await sb.from('pacientes').update(cambios).eq('id', pacId).select('id');
+          if (rn.error) throw rn.error;
+          if (!rn.data || !rn.data.length) throw new Error('No tienes permiso para cambiar los datos de la paciente.');
+        }
+      } else if (!v.paciente && nom.length >= 2) {
+        const rc = await sb.rpc('buscar_o_crear_paciente', { p_nombre: nom, p_telefono: tel || null });
+        if (rc.error || !rc.data) throw rc.error || new Error('No se pudo dar de alta a la paciente');
+        pacId = rc.data;
+      }
+      const fila = {
+        fecha: g('fecha').value, doctor_id: docId, paciente_id: pacId || null,
+        producto_id: pr._orig ? v.producto_id : pr.id, cantidad: cant, precio_unitario: Math.round(pu * 100) / 100,
+        monto: Math.round((t - m2) * 100) / 100, medio_pago: g('p1').value,
+        monto_2: dos() ? m2 : null, medio_pago_2: dos() ? g('p2').value : null,
+        factura: g('fac').checked, num_factura: g('fac').checked ? (g('nfac').value.trim() || null) : null,
+        notas: g('notas').value.trim() || null
+      };
+      const up = await sb.from('farmacia_ventas').update(fila).eq('id', v.id).select('id');
+      if (up.error) throw up.error;
+      if (!up.data || !up.data.length) throw new Error('Sin permiso para editar esta venta (o fuera de horario).');
+      toast('✓ Venta actualizada.');
+      cerrarModal('m-editar'); refrescarActiva();
+    } catch (e) {
+      console.error('[editar farmacia]', e);
+      g('err').textContent = 'No se pudo guardar: ' + traducirError(e); g('err').classList.remove('hide');
+    } finally { busy = false; btn.disabled = false; btn.textContent = 'Guardar cambios'; }
+  };
+  abrirModal('m-editar');
+}
 function abrirEditar(c) {
   if (!c) return;
+  $('ed-t').textContent = '✎ Editar consulta';
   initFormConsulta($('ed-form'), 'e', 'editar', c, () => { cerrarModal('m-editar'); refrescarActiva(); });
   abrirModal('m-editar');
 }
