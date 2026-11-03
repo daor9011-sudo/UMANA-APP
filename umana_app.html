@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="app-version" content="2026.11.02-2"/>
+<meta name="app-version" content="2026.11.02-3"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>UMANA Productividad</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -3497,9 +3497,35 @@ const fm0 = n => (n < 0 ? '-' : '') + '$' + Math.round(Math.abs(n)).toLocaleStri
 const capF = s => s.charAt(0).toUpperCase() + s.slice(1);
 const tonoDoc = id => DOCTORAS.findIndex(d => d.id === id) % 2 ? 'd2' : 'd1';
 const claseSvc = s => { const x = CATALOGO.find(c => c.tipo_consulta === s); const m = x ? x.motivo : ''; return m === 'Consulta' ? 'k2' : /procedim|cirug/i.test(m) ? 'k1' : 'k3'; };
+const FLASH_CSS_LINEAS = `
+.tb{width:100%;border-collapse:collapse;font-size:10px}
+.tb th{font-size:8px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--g4);text-align:right;padding:5px 6px;border-bottom:2px solid var(--navy)}
+.tb th:first-child,.tb td:first-child{text-align:left}
+.tb td{padding:6px 6px;border-bottom:1px dashed var(--g2);text-align:right;white-space:nowrap}
+.tb td b{font-size:11.5px}.tb td small{color:var(--g4);font-size:8.5px}
+.tb .sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:7px;vertical-align:-1px}
+.tb .mb2{height:10px;background:var(--g1);border-radius:4px;width:150px;display:inline-block;vertical-align:middle}
+.tb .mb2 i{display:block;height:100%;border-radius:4px}
+.tb tr.tt td{border-bottom:0;border-top:2px solid var(--navy);font-weight:800;background:var(--g1)}
+.tb tr.vac td{color:var(--g4)}
+.tb .z0{color:var(--g4)}.tb .pc2{color:var(--g6);font-weight:800}
+.tb.mat td{padding:5px 6px}
+.dl{font-weight:800;font-size:8.5px;color:#0f8f6f;background:#E3F6EE;border-radius:8px;padding:1px 6px;white-space:nowrap}.dl.dn{color:#B2402A;background:#FDE9E4}
+.stk{display:flex;height:15px;border-radius:6px;overflow:hidden;margin-top:9px}
+.stk span{display:flex;align-items:center;justify-content:center;color:#fff;font-size:8.5px;font-weight:800}
+`;
+/* Líneas de ingreso del flash report: Consulta · Laboratorios · Procedimientos y cirugías · Farmacia y suplementos */
+const FLASH_LINEAS = [
+  { k: 'cons', t: 'Consulta', col: '#22a8a8', u: ['consulta', 'consultas'] },
+  { k: 'serv', t: 'Laboratorios', col: '#2F6FD0', u: ['estudio', 'estudios'] },
+  { k: 'proc', t: 'Procedimientos y cirugías', col: '#1B3A6B', u: ['procedimiento', 'procedimientos'] },
+  { k: 'farm', t: 'Farmacia y suplementos', col: '#7D3C98', u: ['pieza', 'piezas'] }];
+const lineaDe = c => c._farm ? 'farm' : tabDeMotivo(c.motivo);
+const lineasVacias = () => { const o = {}; FLASH_LINEAS.forEach(l => o[l.k] = 0); return o; };
 async function flashTotal(desde, hasta, docId) {
-  const rows = await cargarMovimientos(desde, hasta);
-  return sumar(rows.filter(c => !c.no_vino && (!docId || c.doctor_id === docId)), ingreso);
+  const rows = (await cargarMovimientos(desde, hasta)).filter(c => !c.no_vino && (!docId || c.doctor_id === docId));
+  const lin = lineasVacias(); rows.forEach(c => { const k = lineaDe(c); lin[k] = num(lin[k] + ingreso(c)); });
+  return { total: sumar(rows, ingreso), lin };
 }
 async function flashReunirDatos(docId) {
   const [desde, hasta] = cRango(), esDia = C.modo === 'dia';
@@ -3507,9 +3533,12 @@ async function flashReunirDatos(docId) {
   const total = sumar(asist, ingreso);
   const pros = {}, medios = {}, mix = {}, det = {};
   let serv = 0, farm = 0, nFarm = 0;
+  const lin = {}, pacs = new Set(); FLASH_LINEAS.forEach(l => lin[l.k] = { monto: 0, n: 0, ventas: 0 });
   asist.forEach(c => {
     const f = esFarmacia(c), v = ingreso(c);
-    const p = pros[c.doctor_id] || (pros[c.doctor_id] = { id: c.doctor_id, nombre: nombreDoctora(c.doctor_id), n: 0, serv: 0, farm: 0, t: 0 });
+    const p = pros[c.doctor_id] || (pros[c.doctor_id] = { id: c.doctor_id, nombre: nombreDoctora(c.doctor_id), n: 0, serv: 0, farm: 0, t: 0, lin: lineasVacias() });
+    const lk = lineaDe(c); p.lin[lk] = num(p.lin[lk] + v); lin[lk].monto = num(lin[lk].monto + v); lin[lk].n += f ? (c._cant || 1) : 1; if (f) lin[lk].ventas++;
+    if (c.paciente_id) pacs.add(c.paciente_id);
     p.t = num(p.t + v); if (f) { p.farm = num(p.farm + v); farm = num(farm + v); nFarm++; } else { p.serv = num(p.serv + v); p.n++; serv = num(serv + v); }
     pagosDe(c).forEach(([m, x]) => { if (x > 0) { const o = medios[m] || (medios[m] = { serv: 0, farm: 0 }); if (f) o.farm = num(o.farm + x); else o.serv = num(o.serv + x); } });
     if (f) { const k = (c.tipo_consulta || 'Producto').trim(); const y = det[k] || (det[k] = { n: 0, monto: 0 }); y.n += (c._cant || 1); y.monto = num(y.monto + v); }
@@ -3524,13 +3553,13 @@ async function flashReunirDatos(docId) {
       if (docId) qp = qp.eq('doctor_id', docId);
       const prev = await qp.order('fecha', { ascending: false }).limit(1);
       const f = prev.data && prev.data[0] && prev.data[0].fecha;
-      if (f) comp = { total: await flashTotal(f, f, docId), etiqueta: f === addDays(desde, -1) ? 'ayer' : fmtD(f).slice(0, 5) };
+      if (f) comp = { ...(await flashTotal(f, f, docId)), etiqueta: f === addDays(desde, -1) ? 'ayer' : fmtD(f).slice(0, 5) };
     } else {
       const ini = parseISO(desde), ant = new Date(ini.getFullYear(), ini.getMonth() - 1, 1);
       const enCurso = todayLocal().slice(0, 7) === desde.slice(0, 7);
       const ultimo = new Date(ini.getFullYear(), ini.getMonth(), 0).getDate();
       const dia = Math.min(enCurso ? parseISO(todayLocal()).getDate() : 31, ultimo);
-      comp = { total: await flashTotal(isoLocal(ant), isoLocal(new Date(ant.getFullYear(), ant.getMonth(), dia)), docId), etiqueta: 'mismo periodo de ' + MESES[ant.getMonth()] };
+      comp = { ...(await flashTotal(isoLocal(ant), isoLocal(new Date(ant.getFullYear(), ant.getMonth(), dia)), docId)), etiqueta: 'mismo periodo de ' + MESES[ant.getMonth()] };
     }
   } catch (e) { console.warn('[flash] sin comparativo', e); }
   // Anexo: detalle por doctor y paciente (solo en el reporte del día)
@@ -3551,7 +3580,7 @@ async function flashReunirDatos(docId) {
     anexo.sort((a, b) => b.total - a.total);
   }
   return { esDia, desde, hasta, total, serv, farm, nFarm, nServ: asist.length - nFarm, n: asist.length - nFarm, porCat,
-    noVino: rows.length - asist.length, factPend: asist.filter(c => c.factura && !c.num_factura).length, pros, medios, mix, det, efTr, comp, anexo,
+    noVino: rows.length - asist.length, factPend: asist.filter(c => c.factura && !c.num_factura).length, pros, medios, mix, det, efTr, comp, anexo, lin, nPac: pacs.size,
     doc: docId ? nombreDoctora(docId) : (ES_DOCTORA() ? PERFIL.nombre : '') };
 }
 function flashFechaTxt(d) {
@@ -3565,9 +3594,16 @@ function flashReportHtml(d, totalPaginas, paginasExtra) {
   if (d.comp && d.comp.total > 0) { const dl = (d.total - d.comp.total) / d.comp.total * 100; comp = '<span class="up ' + (dl < 0 ? 'dn' : '') + '">' + (dl < 0 ? '▼' : '▲') + ' ' + Math.abs(dl).toFixed(1) + '%</span> vs. ' + esc(d.comp.etiqueta) + ' (' + fm0(d.comp.total) + ')'; }
   else comp = d.esDia ? 'Sin día anterior para comparar' : 'Sin mes anterior para comparar';
   const lista = Object.values(d.pros).sort((a, b) => b.t - a.t), maxT = Math.max(1, ...lista.map(p => p.t));
-  const prow = lista.map(p => '<div class="pr"><div class="pn"><span class="np ' + tonoDoc(p.id) + '">' + esc(corto(p.nombre)) + '</span><small>Doctor · ' + p.n + ' consulta' + (p.n === 1 ? '' : 's') + '</small></div>' +
-    '<div class="pb"><div class="bar" style="width:' + Math.max(p.t / maxT * 100, p.t > 0 ? 4 : 0).toFixed(1) + '%"><span class="spart" style="width:' + (p.t ? (p.serv / p.t * 100).toFixed(1) : 0) + '%"></span>' + (p.farm ? '<span class="fpart" style="width:' + (p.farm / p.t * 100).toFixed(1) + '%"></span>' : '') + '</div></div>' +
-    '<div class="pv"><b>' + fm0(p.t) + '</b><small>' + fm0(p.serv) + ' serv.' + (p.farm ? ' · ' + fm0(p.farm) + ' farm.' : '') + '</small></div><div class="pp">' + (d.total ? Math.round(p.t / d.total * 100) : 0) + '%</div></div>').join('');
+  const prow = lista.map(p => '<tr><td><span class="np ' + tonoDoc(p.id) + '">' + esc(corto(p.nombre)) + '</span></td>' +
+    FLASH_LINEAS.map(l => '<td' + (p.lin[l.k] ? '' : ' class="z0"') + '>' + (p.lin[l.k] ? fm0(p.lin[l.k]) : '—') + '</td>').join('') +
+    '<td><b>' + fm0(p.t) + '</b></td><td class="pc2">' + (d.total ? Math.round(p.t / d.total * 100) : 0) + '%</td></tr>').join('');
+  const varPct = (a, b) => b > 0 ? '<span class="dl' + (a < b ? ' dn' : '') + '">' + (a < b ? '▼' : '▲') + ' ' + Math.abs((a - b) / b * 100).toFixed(1) + '%</span>' : '<span class="z0">—</span>';
+  const compTit = d.comp ? 'vs. ' + d.comp.etiqueta.replace(/^mismo periodo de /, '') : 'vs. anterior';
+  const mxL = Math.max(1, ...FLASH_LINEAS.map(l => d.lin[l.k].monto));
+  const lrow = FLASH_LINEAS.map(l => { const x = d.lin[l.k];
+    return '<tr' + (x.monto || x.n ? '' : ' class="vac"') + '><td><span class="sw" style="background:' + l.col + '"></span><b>' + l.t + '</b></td><td>' + x.n + ' ' + l.u[x.n === 1 ? 0 : 1] + (l.k === 'farm' && x.ventas ? ' <small>(' + x.ventas + ' venta' + (x.ventas === 1 ? '' : 's') + ')</small>' : '') + '</td>' +
+      '<td><span class="mb2"><i style="width:' + (x.monto / mxL * 100).toFixed(1) + '%;background:' + l.col + '"></i></span></td><td><b>' + fm0(x.monto) + '</b></td><td>' + (d.total ? Math.round(x.monto / d.total * 100) : 0) + '%</td><td>' + varPct(x.monto, d.comp && d.comp.lin && d.comp.lin[l.k]) + '</td></tr>'; }).join('');
+  const stk = d.total > 0 ? '<div class="stk">' + FLASH_LINEAS.filter(l => d.lin[l.k].monto > 0).map(l => { const p = d.lin[l.k].monto / d.total * 100; return '<span style="width:' + p.toFixed(2) + '%;background:' + l.col + '">' + (p >= 6 ? Math.round(p) + '%' : '') + '</span>'; }).join('') + '</div>' : '';
   const ml = Object.entries(d.medios).map(([n, v]) => ({ n, serv: v.serv, farm: v.farm, t: num(v.serv + v.farm) })).sort((a, b) => b.t - a.t), mxM = Math.max(1, ...ml.map(x => x.t));
   const mrow = ml.map(x => '<div class="mr"><span class="mn">' + (PAGO_ICON[x.n] || '💰') + ' ' + esc(x.n) + '</span><div class="mb"><div class="bar" style="width:' + (x.t / mxM * 100).toFixed(1) + '%"><span class="spart" style="width:' + (x.t ? (x.serv / x.t * 100).toFixed(1) : 0) + '%"></span><span class="fpart" style="width:' + (x.t ? (x.farm / x.t * 100).toFixed(1) : 0) + '%"></span></div></div><b>' + fm0(x.t) + '</b><span class="mp">' + (d.total ? Math.round(x.t / d.total * 100) : 0) + '%</span></div>').join('');
   const mixL = Object.entries(d.mix).sort((a, b) => b[1].monto - a[1].monto).slice(0, 6), mxX = Math.max(1, ...mixL.map(x => x[1].monto));
@@ -3575,16 +3611,20 @@ function flashReportHtml(d, totalPaginas, paginasExtra) {
   const detL = Object.entries(d.det).sort((a, b) => b[1].monto - a[1].monto).slice(0, 3), mxD = Math.max(1, ...detL.map(x => x[1].monto));
   const drow = detL.map(([n, v]) => '<div class="xr"><span class="xn">' + esc(n) + '</span><span class="xk">' + v.n + ' pz</span><div class="xb"><div class="bar f" style="width:' + (v.monto / mxD * 100).toFixed(1) + '%"></div></div><b>' + fm0(v.monto) + '</b></div>').join('');
   const quien = PERFIL ? 'por ' + esc(PERFIL.nombre) : '';
-  return '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Flash report</title>' + FLASH_FONTS + '<style>' + FLASH_CSS + '</style></head><body>' +
+  return '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Flash report</title>' + FLASH_FONTS + '<style>' + FLASH_CSS + FLASH_CSS_LINEAS + '</style></head><body>' +
     '<div class="page" id="flash-p1"><div class="hd"><div><div class="br">UMANA Ginecología · Flash report</div><h1 class="d">' + (d.esDia ? 'Cierre del día' : 'Cierre del mes') + ' · <b>Productividad</b></h1></div>' +
     '<div class="dt"><strong class="d">' + esc(flashFechaTxt(d)) + '</strong>' + (d.doc ? esc(d.doc) + '<br>' : '') + 'Generado el ' + esc(ahora) + '<br>' + quien + '</div></div>' +
     '<div class="wrap"><div class="hero">' +
       '<div class="k main"><div class="l">' + (d.esDia ? 'Ingreso total del día' : 'Ingreso total del mes') + '</div><div class="v d">' + fm0(d.total) + '</div><div class="s">' + comp + '</div></div>' +
-      '<div class="k"><div class="l">Servicios</div><div class="v t d">' + fm0(d.serv) + '</div><div class="s">' + d.nServ + ' consulta' + (d.nServ === 1 ? '' : 's') + ' · ticket ' + fm0(d.nServ ? d.serv / d.nServ : 0) + '</div></div>' +
-      '<div class="k"><div class="l">Farmacia</div><div class="v f d">' + fm0(d.farm) + '</div><div class="s">' + d.nFarm + ' venta' + (d.nFarm === 1 ? '' : 's') + '</div></div>' +
-      '<div class="k"><div class="l">Servicios atendidos</div><div class="v d">' + d.n + '</div><div class="s">' + (Object.entries(d.porCat).sort((a, b) => b[1] - a[1]).map(([m, n]) => n + ' ' + esc(m.replace(/^Estudio de /, '').toLowerCase())).join(' · ') || '—') + '</div></div>' +
+      '<div class="k"><div class="l">Servicios atendidos</div><div class="v d">' + d.nServ + '</div><div class="s">' + (FLASH_LINEAS.filter(l => l.k !== 'farm' && d.lin[l.k].n).map(l => d.lin[l.k].n + ' ' + l.u[d.lin[l.k].n === 1 ? 0 : 1]).join(' · ') || '—') + '</div></div>' +
+      '<div class="k"><div class="l">Ticket promedio</div><div class="v t d">' + fm0(d.nPac ? d.total / d.nPac : 0) + '</div><div class="s">por paciente atendida (' + d.nPac + ')</div></div>' +
+      '<div class="k"><div class="l">Farmacia</div><div class="v f d">' + d.lin.farm.n + ' pz</div><div class="s">en ' + d.nFarm + ' venta' + (d.nFarm === 1 ? '' : 's') + '</div></div>' +
     '</div>' +
-    (d.doc && !ES_DOCTORA() ? '' : '<h2 class="d">Productividad por doctor <small>servicios + farmacia</small><span class="lg"><span><i style="background:var(--teal)"></i>Servicios</span><span><i style="background:var(--purple)"></i>Farmacia</span></span></h2>' + (prow || '<div style="color:var(--g4);padding:8px 0">Sin movimientos.</div>')) +
+    '<h2 class="d">Ingreso por línea</h2><table class="tb"><tr><th>Línea</th><th>Volumen</th><th></th><th>Monto</th><th>% del total</th><th>' + esc(compTit) + '</th></tr>' + lrow +
+      '<tr class="tt"><td>Ingreso total</td><td>' + d.nServ + ' serv. · ' + d.lin.farm.n + ' pz</td><td></td><td><b>' + fm0(d.total) + '</b></td><td>100%</td><td>' + varPct(d.total, d.comp && d.comp.total) + '</td></tr></table>' + stk +
+    (d.doc && !ES_DOCTORA() ? '' : '<h2 class="d">Productividad por doctor <small>por línea de ingreso</small></h2><table class="tb mat"><tr><th>Doctor</th>' + FLASH_LINEAS.map(l => '<th style="color:' + l.col + '">' + l.t + '</th>').join('') + '<th>Total</th><th>%</th></tr>' +
+      (prow || '<tr><td colspan="7" style="color:var(--g4)">Sin movimientos.</td></tr>') +
+      (lista.length > 1 ? '<tr class="tt"><td>Total</td>' + FLASH_LINEAS.map(l => '<td>' + fm0(d.lin[l.k].monto) + '</td>').join('') + '<td><b>' + fm0(d.total) + '</b></td><td>100%</td></tr>' : '') + '</table>') +
     '<div class="two"><div><h2 class="d">Cobrado por medio de pago</h2>' + (mrow || '<div style="color:var(--g4)">Sin cobros.</div>') + '</div>' +
     '<div><h2 class="d">Qué se vendió</h2><div class="sub" style="margin-top:0">Servicios · top ' + mixL.length + '</div>' + (xrow || '<div style="color:var(--g4)">—</div>') +
       (detL.length ? '<div class="sub">Farmacia · top ' + detL.length + '</div>' + drow : '') + '</div></div>' +
