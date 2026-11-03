@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="app-version" content="2026.11.03-2"/>
+<meta name="app-version" content="2026.11.03-3"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>UMANA Productividad</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1900,7 +1900,8 @@ function htmlFormConsulta(p, modo) {
     '<div class="fi2 ac-wrap"><label class="lbl2" for="' + p + '-pac">Paciente</label>' +
       '<input class="app-input" id="' + p + '-pac" placeholder="Nombre completo" autocomplete="off">' +
       '<div class="ac-list hide" id="' + p + '-ac"></div>' +
-      '<div class="hint hide" id="' + p + '-newpac">📋 Paciente nueva: se dará de alta al guardar (se busca por teléfono + nombre para no duplicar).</div></div>' +
+      '<div class="hint hide" id="' + p + '-newpac">📋 Paciente nueva: se dará de alta al guardar (se busca por teléfono + nombre para no duplicar).</div>' +
+      (modo === 'editar' && !ES_DOCTORA() ? '<div class="hint" id="' + p + '-renom" style="display:block">✎ Si corriges el nombre, se actualiza en todas sus consultas y compras.</div>' : '') + '</div>' +
     '<div class="fi2"><label class="lbl2" for="' + p + '-tel">Teléfono <span style="color:#e53e3e">*</span></label>' + telHtml(p, 'app-input') + '</div>' +
     '<div class="b1-summary b1-tall"><div class="se">Resumen en vivo</div><div class="sv" id="' + p + '-spac">Sin nombre aún</div>' +
       '<div class="sm" id="' + p + '-sserv">—</div><div class="sm" id="' + p + '-spag">—</div>' +
@@ -2001,7 +2002,9 @@ function initFormConsulta(cont, p, modo, consulta, onSaved) {
   let acTimer = null, acSeq = 0;
   function cerrarAc() { g('ac').classList.add('hide'); F.acIdx = -1; }
   function elegirPac(r) { F.pac = r; g('pac').value = r.nombre; telCargar(p, r.telefono); g('newpac').classList.add('hide'); cerrarAc(); resumen(); }
+  const RENOMBRA = modo === 'editar' && !ES_DOCTORA();   // como Skin: en Editar se corrige el nombre de la misma paciente
   g('pac').addEventListener('input', () => {
+    if (RENOMBRA && F.pac) { g('newpac').classList.add('hide'); cerrarAc(); resumen(); return; }
     F.pac = null; resumen();
     const q = g('pac').value.trim();
     g('newpac').classList.toggle('hide', q.length < 2);
@@ -2110,6 +2113,12 @@ function initFormConsulta(cont, p, modo, consulta, onSaved) {
         pacId = r.data;
       } else if (v.tel && v.tel !== (F.pac.telefono || '') && !ES_DOCTORA()) {
         await sb.from('pacientes').update({ telefono: v.tel }).eq('id', pacId);
+      }
+      if (RENOMBRA && F.pac && v.nom && v.nom !== F.pac.nombre) {
+        const rn = await sb.from('pacientes').update({ nombre: v.nom }).eq('id', pacId).select('id');
+        if (rn.error) throw rn.error;
+        if (!rn.data || !rn.data.length) throw new Error('No tienes permiso para cambiar el nombre de la paciente.');
+        F.pac.nombre = v.nom;
       }
       const segundo = !v.nv && segundoVisible() && P2();
       const fila = {
