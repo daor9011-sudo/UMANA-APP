@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="app-version" content="2026.11.02-3"/>
+<meta name="app-version" content="2026.11.02-5"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>UMANA Productividad</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -3512,6 +3512,8 @@ const FLASH_CSS_LINEAS = `
 .tb.mat td{padding:5px 6px}
 .dl{font-weight:800;font-size:8.5px;color:#0f8f6f;background:#E3F6EE;border-radius:8px;padding:1px 6px;white-space:nowrap}.dl.dn{color:#B2402A;background:#FDE9E4}
 .stk{display:flex;height:15px;border-radius:6px;overflow:hidden;margin-top:9px}
+.ln4 .lnp{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700}.ln4 .lnp::before{content:'';width:10px;height:10px;border-radius:3px;background:var(--c)}
+.ln4.vac{opacity:.5}.ln4 .pv small .dl{font-size:8px}
 .stk span{display:flex;align-items:center;justify-content:center;color:#fff;font-size:8.5px;font-weight:800}
 `;
 /* Líneas de ingreso del flash report: Consulta · Laboratorios · Procedimientos y cirugías · Farmacia y suplementos */
@@ -3610,11 +3612,8 @@ function flashReportHtml(d, totalPaginas, paginasExtra) {
   const xrow = mixL.map(([n, v]) => '<div class="xr"><span class="xn">' + esc(n) + '</span><span class="xk">×' + v.n + '</span><div class="xb"><div class="bar t" style="width:' + (v.monto / mxX * 100).toFixed(1) + '%"></div></div><b>' + fm0(v.monto) + '</b></div>').join('');
   const detL = Object.entries(d.det).sort((a, b) => b[1].monto - a[1].monto).slice(0, 3), mxD = Math.max(1, ...detL.map(x => x[1].monto));
   const drow = detL.map(([n, v]) => '<div class="xr"><span class="xn">' + esc(n) + '</span><span class="xk">' + v.n + ' pz</span><div class="xb"><div class="bar f" style="width:' + (v.monto / mxD * 100).toFixed(1) + '%"></div></div><b>' + fm0(v.monto) + '</b></div>').join('');
-  const quien = PERFIL ? 'por ' + esc(PERFIL.nombre) : '';
-  return '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Flash report</title>' + FLASH_FONTS + '<style>' + FLASH_CSS + FLASH_CSS_LINEAS + '</style></head><body>' +
-    '<div class="page" id="flash-p1"><div class="hd"><div><div class="br">UMANA Ginecología · Flash report</div><h1 class="d">' + (d.esDia ? 'Cierre del día' : 'Cierre del mes') + ' · <b>Productividad</b></h1></div>' +
-    '<div class="dt"><strong class="d">' + esc(flashFechaTxt(d)) + '</strong>' + (d.doc ? esc(d.doc) + '<br>' : '') + 'Generado el ' + esc(ahora) + '<br>' + quien + '</div></div>' +
-    '<div class="wrap"><div class="hero">' +
+  // Hoja general: tabla de mezcla por línea + matriz doctor × línea (opción B)
+  const bloqueGen = '<div class="hero">' +
       '<div class="k main"><div class="l">' + (d.esDia ? 'Ingreso total del día' : 'Ingreso total del mes') + '</div><div class="v d">' + fm0(d.total) + '</div><div class="s">' + comp + '</div></div>' +
       '<div class="k"><div class="l">Servicios atendidos</div><div class="v d">' + d.nServ + '</div><div class="s">' + (FLASH_LINEAS.filter(l => l.k !== 'farm' && d.lin[l.k].n).map(l => d.lin[l.k].n + ' ' + l.u[d.lin[l.k].n === 1 ? 0 : 1]).join(' · ') || '—') + '</div></div>' +
       '<div class="k"><div class="l">Ticket promedio</div><div class="v t d">' + fm0(d.nPac ? d.total / d.nPac : 0) + '</div><div class="s">por paciente atendida (' + d.nPac + ')</div></div>' +
@@ -3624,7 +3623,24 @@ function flashReportHtml(d, totalPaginas, paginasExtra) {
       '<tr class="tt"><td>Ingreso total</td><td>' + d.nServ + ' serv. · ' + d.lin.farm.n + ' pz</td><td></td><td><b>' + fm0(d.total) + '</b></td><td>100%</td><td>' + varPct(d.total, d.comp && d.comp.total) + '</td></tr></table>' + stk +
     (d.doc && !ES_DOCTORA() ? '' : '<h2 class="d">Productividad por doctor <small>por línea de ingreso</small></h2><table class="tb mat"><tr><th>Doctor</th>' + FLASH_LINEAS.map(l => '<th style="color:' + l.col + '">' + l.t + '</th>').join('') + '<th>Total</th><th>%</th></tr>' +
       (prow || '<tr><td colspan="7" style="color:var(--g4)">Sin movimientos.</td></tr>') +
-      (lista.length > 1 ? '<tr class="tt"><td>Total</td>' + FLASH_LINEAS.map(l => '<td>' + fm0(d.lin[l.k].monto) + '</td>').join('') + '<td><b>' + fm0(d.total) + '</b></td><td>100%</td></tr>' : '') + '</table>') +
+      (lista.length > 1 ? '<tr class="tt"><td>Total</td>' + FLASH_LINEAS.map(l => '<td>' + fm0(d.lin[l.k].monto) + '</td>').join('') + '<td><b>' + fm0(d.total) + '</b></td><td>100%</td></tr>' : '') + '</table>');
+  // Hoja de un doctor: formato del flash de Skin (tarjetas + barras) con su ingreso por línea
+  const lrowDoc = FLASH_LINEAS.map(l => { const x = d.lin[l.k], p = d.total ? x.monto / d.total * 100 : 0;
+    return '<div class="pr ln4' + (x.monto || x.n ? '' : ' vac') + '"><div class="pn"><span class="lnp" style="--c:' + l.col + '">' + l.t + '</span><small>' + x.n + ' ' + l.u[x.n === 1 ? 0 : 1] + (l.k === 'farm' && x.ventas ? ' · ' + x.ventas + ' venta' + (x.ventas === 1 ? '' : 's') : '') + '</small></div>' +
+      '<div class="pb"><div class="bar" style="width:' + Math.max(x.monto / mxL * 100, x.monto > 0 ? 4 : 0).toFixed(1) + '%;background:' + l.col + '"></div></div>' +
+      '<div class="pv"><b>' + fm0(x.monto) + '</b><small>' + (d.comp && d.comp.lin ? varPct(x.monto, d.comp.lin[l.k]) + ' ' + esc(compTit) : '&nbsp;') + '</small></div><div class="pp">' + Math.round(p) + '%</div></div>'; }).join('');
+  const bloqueDoc = '<div class="hero">' +
+      '<div class="k main"><div class="l">' + (d.esDia ? 'Ingreso total del día' : 'Ingreso total del mes') + '</div><div class="v d">' + fm0(d.total) + '</div><div class="s">' + comp + '</div></div>' +
+      '<div class="k"><div class="l">Servicios</div><div class="v t d">' + fm0(d.serv) + '</div><div class="s">' + d.nServ + ' servicio' + (d.nServ === 1 ? '' : 's') + ' · ticket ' + fm0(d.nServ ? d.serv / d.nServ : 0) + '</div></div>' +
+      '<div class="k"><div class="l">Farmacia</div><div class="v f d">' + fm0(d.farm) + '</div><div class="s">' + d.nFarm + ' venta' + (d.nFarm === 1 ? '' : 's') + ' · ' + d.lin.farm.n + ' pieza' + (d.lin.farm.n === 1 ? '' : 's') + '</div></div>' +
+      '<div class="k"><div class="l">Pacientes</div><div class="v d">' + d.nPac + '</div><div class="s">' + (FLASH_LINEAS.filter(l => l.k !== 'farm' && d.lin[l.k].n).map(l => d.lin[l.k].n + ' ' + (l.k === 'proc' ? 'proced.' : l.u[d.lin[l.k].n === 1 ? 0 : 1])).join(' · ') || 'solo farmacia') + '</div></div>' +
+    '</div>' +
+    '<h2 class="d">Ingreso por línea <small>' + esc(d.doc) + '</small></h2>' + lrowDoc + stk;
+  const quien = PERFIL ? 'por ' + esc(PERFIL.nombre) : '';
+  return '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Flash report</title>' + FLASH_FONTS + '<style>' + FLASH_CSS + FLASH_CSS_LINEAS + '</style></head><body>' +
+    '<div class="page" id="flash-p1"><div class="hd"><div><div class="br">UMANA Ginecología · Flash report</div><h1 class="d">' + (d.esDia ? 'Cierre del día' : 'Cierre del mes') + ' · <b>Productividad</b></h1></div>' +
+    '<div class="dt"><strong class="d">' + esc(flashFechaTxt(d)) + '</strong>' + (d.doc ? esc(d.doc) + '<br>' : '') + 'Generado el ' + esc(ahora) + '<br>' + quien + '</div></div>' +
+    '<div class="wrap">' + (d.doc ? bloqueDoc : bloqueGen) +
     '<div class="two"><div><h2 class="d">Cobrado por medio de pago</h2>' + (mrow || '<div style="color:var(--g4)">Sin cobros.</div>') + '</div>' +
     '<div><h2 class="d">Qué se vendió</h2><div class="sub" style="margin-top:0">Servicios · top ' + mixL.length + '</div>' + (xrow || '<div style="color:var(--g4)">—</div>') +
       (detL.length ? '<div class="sub">Farmacia · top ' + detL.length + '</div>' + drow : '') + '</div></div>' +
@@ -3717,7 +3733,7 @@ async function flashHtmlAPdf(html, nombreArchivo, soloBlob) {
     pdf.save(nombreArchivo);
   } finally { ifr.remove(); }
 }
-// Menú del botón "Exportar PDF": todo en un PDF (separado por doctor), un PDF por doctor (ZIP) o el de un solo doctor
+// Menú del botón "Exportar PDF": todo en un PDF (separado por doctor) o el PDF de un solo doctor
 function cerrarMenuFlash() { const m = $('c-flash-menu'); if (m) { m.hidden = true; $('c-flash').setAttribute('aria-expanded', 'false'); } document.removeEventListener('click', cerrarMenuFlash._fuera, true); }
 const flashIdsDoc = () => {
   const porDoc = {};
@@ -3736,12 +3752,11 @@ function abrirMenuFlash(ev) {
     (sub ? '<small style="display:block;color:var(--g6);font-size:10.5px;font-weight:500;margin-top:1px">' + esc(sub) + '</small>' : '') + '</span><b>' + fmt0(monto) + '</b></button>';
   menu.innerHTML = '<div class="flash-menu-t">Descargar flash report</div>' +
     item('todo', '', '📄', 'Todo en un solo PDF', 'Resumen general y una sección por doctor', tot) +
-    (ids.length > 1 ? item('zip', '', '📦', 'Un PDF por doctor', ids.length + ' archivos en un ZIP', tot) : '') +
     '<div class="flash-menu-sep"></div><div class="flash-menu-t" style="padding-top:4px">Solo un doctor</div>' +
     ids.map(id => item('uno', id, '🩺', nombreDoctora(id), '', porDoc[id])).join('');
   menu.querySelectorAll('.flash-opt').forEach(b => b.onclick = e => {
     e.stopPropagation(); cerrarMenuFlash();
-    if (b.dataset.acc === 'zip') exportarFlashPorDoctor(); else exportarFlashReport(b.dataset.doc, b.dataset.acc === 'todo');
+    exportarFlashReport(b.dataset.doc, b.dataset.acc === 'todo');
   });
   menu.hidden = false; btn.setAttribute('aria-expanded', 'true');
   cerrarMenuFlash._fuera = e => { if (!e.target.closest('.flash-wrap')) cerrarMenuFlash(); };
@@ -3789,31 +3804,6 @@ async function exportarFlashReport(docId, separado) {
     await flashHtmlAPdf(html, nombre);
     toast('PDF generado.');
   } catch (e) { console.error('[flash report]', e); toast('No se pudo generar el PDF. Revisa tu conexión e inténtalo de nuevo.'); }
-  finally { btn.disabled = false; btn.textContent = txt0; }
-}
-/* Un PDF por doctor, todos juntos en un ZIP */
-const CDN_ZIP = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-async function exportarFlashPorDoctor() {
-  const btn = $('c-flash'); if (!btn || btn.disabled) return;
-  const { ids } = flashIdsDoc();
-  if (!ids.length) return toast('No hay movimientos en este periodo para exportar.');
-  const txt0 = btn.textContent; btn.disabled = true;
-  try {
-    await cargarScript(CDN_ZIP);
-    const zip = new window.JSZip(); let fecha = '';
-    window.__FLASH_ZIP = [];
-    for (let i = 0; i < ids.length; i++) {
-      btn.textContent = '⏳ ' + (i + 1) + ' de ' + ids.length + '…';
-      const r = await flashArmar(ids[i], true), nombre = flashNombre(r.d, slugDoc(r.d.doc));
-      fecha = r.d.esDia ? r.d.desde : r.d.desde.slice(0, 7);
-      zip.file(nombre, await flashHtmlAPdf(r.html, nombre, true));
-      window.__FLASH_ZIP.push(nombre);
-    }
-    const blob = await zip.generateAsync({ type: 'blob' }), a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download = 'UMANA_Flash_Reports_' + fecha + '_por_doctor.zip';
-    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
-    toast(ids.length + ' PDFs generados (uno por doctor).');
-  } catch (e) { console.error('[flash por doctor]', e); toast('No se pudieron generar los PDFs. Revisa tu conexión e inténtalo de nuevo.'); }
   finally { btn.disabled = false; btn.textContent = txt0; }
 }
 
