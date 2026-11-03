@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="app-version" content="2026.11.02-5"/>
+<meta name="app-version" content="2026.11.03-2"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>UMANA Productividad</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1152,6 +1152,10 @@ body.en-auth .wmk{color:rgba(255,255,255,.4)}
 #body-registro .tel-wrap .lada-btn,#body-registro .tel-wrap input{background:#fff;border:1px solid var(--g2);border-radius:8px;color:var(--navy);font-size:13px;font-family:inherit;outline:none}
 #body-registro .tel-wrap input{padding:9px 12px}
 #body-registro .tel-wrap input:focus,#body-registro .tel-wrap .lada-btn:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(42,191,191,.14)}
+.hist-chip.c-farm{background:linear-gradient(180deg,#FBF8FE,#fff);border-color:#D2B4DE}.hist-chip.c-farm .ico{background:#EBD9F5}.hist-chip.c-farm .v{color:#7D3C98}
+.hist-chip.c-cons .ico{background:#D9F4F4}
+#hist-tbody tr.hist-farm-row td{background:#FCF9FE}
+#hist-tbody tr.hist-farm-row td:first-child,#hist-tbody tr.hist-farm-row{border-left-color:#7D3C98}
 </style>
 </head>
 <body>
@@ -2519,7 +2523,7 @@ async function borrarVentaFarmacia(v) {
 
 
 /* ════════ HISTORIAL (diseño de Skin Fabric / CUIVAN) ════════ */
-const H = { per: null, sel: 'hoy', rows: [], q: '', doc: '', mot: '', med: '', tg: new Set(), limite: 200, cargando: false, seq: 0, papelera: false, farm: false };
+const H = { per: null, sel: 'hoy', rows: [], q: '', doc: '', mot: '', med: '', tg: new Set(), limite: 200, cargando: false, seq: 0, papelera: false, farm: false, linea: 'todo', farmKpi: [] };
 const PAGO_ICON = { Efectivo: '💵', Tarjeta: '💳', 'Tarjeta Crédito': '💳', 'Tarjeta Débito': '💳', Transferencia: '🏦', 'Cortesía': '🎁' };
 const iconoPago = m => m ? (PAGO_ICON[m] || '💰') + ' ' : '';
 function perDia(d) { return { tipo: 'dia', d, h: d, lbl: d === todayLocal() ? 'Hoy' : d === addDays(todayLocal(), -1) ? 'Ayer' : diaNombre(d) + ' ' + fmtD(d) }; }
@@ -2554,10 +2558,10 @@ function renderHistorial() {
         '<input type="month" id="hist-mes" style="display:none" aria-label="Mes">' +
         '<span class="h-ctl" id="h-rg-w" style="display:none;align-items:center;gap:6px"><input type="date" id="hist-desde" aria-label="Desde"><span class="sep">a</span><input type="date" id="hist-hasta" aria-label="Hasta"></span>' +
         (ES_DOCTORA() ? '' : '<select id="h-doc" aria-label="Doctor"></select>') +
-        '<select id="h-mot" aria-label="Tipo de consulta"></select>' +
+        '<select id="h-mot" aria-label="Servicio o farmacia"></select>' +
         '<select id="h-med" aria-label="Medio de pago"></select>' +
       '</div>' +
-      '<div class="excl-filters"><div class="excl-link" data-tg="fac">🧾 Facturado</div><div class="excl-link" data-tg="nofac">❌ No facturado</div><div class="excl-link" data-tg="nv" id="h-tg-nv">👻 No vino</div><div class="excl-link" id="h-farm" title="Ver las ventas de farmacia del periodo">💊 Ver farmacia</div></div>' +
+      '<div class="excl-filters"><div class="excl-link" data-tg="fac">🧾 Facturado</div><div class="excl-link" data-tg="nofac">❌ No facturado</div><div class="excl-link" data-tg="nv" id="h-tg-nv">👻 No vino</div></div>' +
       '<div id="hist-papelera-box" class="papelera-box" style="display:none">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px"><strong style="font-size:12.5px" id="pp-sub">🗑 Papelera</strong>' +
         '<button class="sbtn btn-del" id="pp-vaciar" type="button" style="display:none">Vaciar papelera</button></div>' +
@@ -2567,9 +2571,9 @@ function renderHistorial() {
         '<tbody id="hist-tbody"></tbody></table><div class="empty-note" id="hist-empty" style="display:none">No hay consultas para los filtros seleccionados.</div></div>' +
       '<div class="more hide" id="h-more"><button class="sbtn btn-outline" id="h-morebtn" type="button">Mostrar más</button></div>';
     if ($('h-doc')) $('h-doc').innerHTML = opt(DOCTORAS.map(d => ({ v: d.id, t: d.nombre })), 'Todos los doctores');
-    $('h-mot').innerHTML = '<option value="">Todos los servicios</option>' + motivosTodos().map(m => '<optgroup label="' + esc(m) + '"><option value="m|' + esc(m) + '">' + esc(m) + ' · todos</option>' +
+    $('h-mot').innerHTML = '<option value="">Todo (servicios y farmacia)</option><option value="serv">🩺 Solo servicios</option>' + optFarmaciaHist() + motivosTodos().map(m => '<optgroup label="' + esc(m) + '"><option value="m|' + esc(m) + '">' + esc(m) + ' · todos</option>' +
       CATALOGO.filter(s => s.motivo === m).map(s => '<option value="' + esc(claveServ(s.motivo, s.tipo_consulta)) + '">' + esc(s.tipo_consulta) + '</option>').join('') + '</optgroup>').join('');
-    $('h-farm').onclick = () => { H.farm = !H.farm; H.limite = 200; H.tg.delete('nv'); document.querySelectorAll('#body-historial [data-tg]').forEach(y => y.classList.toggle('active', H.tg.has(y.dataset.tg))); cargarHistorial(); };
+    $('hist-kpi-chips').onclick = e => { if (e.target.closest('#hist-farm-go')) { $('h-mot').value = 'f|'; $('h-mot').dispatchEvent(new Event('change')); } };
     $('h-med').innerHTML = opt(CATALOGOS.mediosPago, 'Todos los medios');
     $('h-q').addEventListener('input', () => { H.q = $('h-q').value; H.limite = 200; pintarHistorial(); });
     ['h-doc', 'h-mot', 'h-med'].forEach(id => $(id) && $(id).addEventListener('change', () => { H[id.slice(2)] = $(id).value; H.limite = 200; pintarHistorial(); }));
@@ -2621,13 +2625,12 @@ async function cargarHistorial() {
   if (!$('hist-tbody')) return;
   const seq = ++H.seq; H.cargando = true;
   pintarControlesHist();
-  $('h-farm').classList.toggle('active', H.farm); $('h-mot').style.display = H.farm ? 'none' : ''; $('h-tg-nv').style.display = H.farm ? 'none' : '';
-  $('h-th-serv').innerHTML = '<span class="hi">' + (H.farm ? '💊' : '🏷️') + '</span>' + (H.farm ? 'Producto' : 'Servicio');
+  histModo();
   $('hist-tbody').innerHTML = '<tr><td colspan="8" class="empty">Cargando…</td></tr>'; $('hist-empty').style.display = 'none';
   try {
-    const rows = H.farm ? (await cargarVentasFarmacia(H.per.d, H.per.h)).map(comoMovimiento) : await cargarConsultas(H.per.d, H.per.h, false);
+    const [cs, fv] = await Promise.all([cargarConsultas(H.per.d, H.per.h, false), cargarVentasFarmacia(H.per.d, H.per.h).then(r => r.map(comoMovimiento))]);
     if (seq !== H.seq) return; // llegó una respuesta vieja: se descarta
-    H.rows = rows;
+    H.rows = mezclarMovs(cs, fv);
   } catch (e) {
     console.error(e); if (seq !== H.seq) return;
     H.rows = []; $('hist-tbody').innerHTML = ''; $('hist-empty').textContent = 'No se pudo cargar el historial. ' + traducirError(e); $('hist-empty').style.display = '';
@@ -2635,17 +2638,32 @@ async function cargarHistorial() {
   } finally { if (seq === H.seq) H.cargando = false; }
   pintarHistorial();
 }
+/* Servicios y farmacia mezclados por fecha (más reciente primero), como en Skin */
+const mezclarMovs = (a, b) => a.concat(b).sort((x, y) => (y.fecha || '').localeCompare(x.fecha || '') || String(y.created_at || '').localeCompare(String(x.created_at || '')));
+/* Farmacia como una opción más del filtro de servicios: "Farmacia · todo" y por categoría */
+function optFarmaciaHist() {
+  const cats = [...new Set(PRODUCTOS.map(p => p.categoria).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
+  return '<optgroup label="💊 Farmacia"><option value="f|">💊 Farmacia · todo</option>' + cats.map(c => '<option value="f|' + esc(c) + '">' + esc(c) + '</option>').join('') + '</optgroup>';
+}
+/* Qué se está viendo según el filtro: todo · solo servicios · solo farmacia */
+function histModo() {
+  H.farm = (H.mot || '').startsWith('f|'); H.linea = H.farm ? 'farm' : H.mot ? 'serv' : 'todo';
+  if (H.farm && H.tg.has('nv')) { H.tg.delete('nv'); document.querySelectorAll('#body-historial [data-tg]').forEach(y => y.classList.toggle('active', H.tg.has(y.dataset.tg))); }
+  if ($('h-tg-nv')) $('h-tg-nv').style.display = H.farm ? 'none' : '';
+  if ($('h-th-serv')) $('h-th-serv').innerHTML = '<span class="hi">' + (H.farm ? '💊' : '🏷️') + '</span>' + (H.farm ? 'Producto' : H.linea === 'todo' ? 'Servicio / producto' : 'Servicio');
+}
 function filtrarHistorial(rows) {
   const q = normTxt(H.q), qd = soloDigitos(H.q);
   return rows.filter(c =>
-    (!H.doc || c.doctor_id === H.doc) && (H.farm || !H.mot || (H.mot.startsWith('m|') ? c.motivo === H.mot.slice(2) : claveServ(c.motivo, c.tipo_consulta) === H.mot)) &&
+    (!H.doc || c.doctor_id === H.doc) && (!H.mot || (H.mot === 'serv' ? !c._farm : H.mot.startsWith('f|') ? c._farm && (H.mot === 'f|' || c._cat === H.mot.slice(2)) : !c._farm && (H.mot.startsWith('m|') ? c.motivo === H.mot.slice(2) : claveServ(c.motivo, c.tipo_consulta) === H.mot))) &&
     (!H.med || c.medio_pago === H.med || c.medio_pago_2 === H.med) &&
     (!q || normTxt(c.paciente && c.paciente.nombre).includes(q) || (qd.length >= 3 && soloDigitos(c.paciente && c.paciente.telefono).includes(qd))) &&
-    (!H.tg.has('fac') || c.factura) && (!H.tg.has('nofac') || !c.factura) && (H.farm || !H.tg.has('nv') || c.no_vino));
+    (!H.tg.has('fac') || c.factura) && (!H.tg.has('nofac') || !c.factura) && (!H.tg.has('nv') || (!c._farm && c.no_vino)));
 }
 const fmt0 = n => '$' + Math.round(Number(n) || 0).toLocaleString('es-MX');
 function pintarHistorial() {
   if (!$('hist-tbody')) return;
+  histModo();
   bloque('el historial', () => {
     const rows = filtrarHistorial(H.rows), asist = rows.filter(c => !c.no_vino);
     const tot = sumar(asist, ingreso), pacs = new Set(asist.map(c => c.paciente_id).filter(Boolean)).size;
@@ -2654,8 +2672,11 @@ function pintarHistorial() {
     const porCat = re => asist.filter(c => re.test(c.motivo || '')).length;
     const chip = (cls, ico, v, l, id) => '<div class="hist-chip ' + cls + '"><span class="ico">' + ico + '</span><div><div class="v"' + (id ? ' id="' + id + '"' : '') + '>' + v + '</div><div class="l">' + l + '</div></div></div>';
     $('hist-kpi-chips').innerHTML = chip('c-total', '💰', money(tot), 'Total', 'hk-tot') + chip('c-pac', '👥', pacs, 'Pacientes', 'hk-pac') +
-      chip('c-ticket', '🎟️', money(asist.length ? tot / asist.length : 0), H.farm ? 'Ticket por venta' : 'Ticket prom.', 'hk-tic') +
-      (H.farm
+      (H.linea === 'todo' ? '' : chip('c-ticket', '🎟️', money(asist.length ? tot / asist.length : 0), H.farm ? 'Ticket por venta' : 'Ticket prom.', 'hk-tic')) +
+      (H.linea === 'todo' ? (() => { const fa = asist.filter(c => c._farm), sv = asist.filter(c => !c._farm);
+          return chip('c-primera', '🩺', money(sumar(sv, ingreso)), 'Servicios') + '<div class="hist-chip c-farm" id="hist-farm-go" title="Filtrar solo farmacia" style="cursor:pointer"><span class="ico">💊</span><div><div class="v">' + money(sumar(fa, ingreso)) + '</div><div class="l">Farmacia · ' + fa.reduce((a, c) => a + (c._cant || 1), 0) + ' pz</div></div></div>' +
+            chip('c-subsecuente', '🔬', porCat(/procedim|cirug/i), 'Proced. y cirugías') + chip('c-procedimiento', '🧪', porCat(/laboratorio|estudio/i), 'Laboratorio') + chip('c-cons', '👩‍⚕️', porCat(/^consulta$/i), 'Consultas'); })()
+      : H.farm
         ? chip('c-primera', '🧾', asist.length, 'Ventas') + chip('c-subsecuente', '📦', asist.reduce((a, c) => a + (c._cant || 1), 0), 'Piezas') + chip('c-procedimiento', '🏷️', new Set(asist.map(c => c._cat)).size, 'Categorías')
         : chip('c-primera', '🩺', porCat(/^consulta$/i), 'Consultas') + chip('c-subsecuente', '🔬', porCat(/procedim|cirug/i), 'Proced. y cirugías') + chip('c-procedimiento', '🧪', porCat(/laboratorio|estudio/i), 'Laboratorio'));
     const vis = rows.slice(0, H.limite);
@@ -2665,12 +2686,12 @@ function pintarHistorial() {
       const pg = pagosDe(c);
       const pago = c.no_vino ? '<span class="h-mut">—</span>' : (pg[0] ? '<span class="h-pay">' + iconoPago(pg[0][0]) + esc(pg[0][0]) + (pg.length > 1 ? ' ' + money(pg[0][1]) : '') + '</span>' : '—') +
         (pg[1] ? '<div style="font-size:10px;color:var(--g6)">+' + iconoPago(pg[1][0]) + esc(pg[1][0]) + ' ' + money(pg[1][1]) + '</div>' : '');
-      return '<tr data-id="' + esc(c.id) + '">' +
+      return '<tr data-id="' + esc(c.id) + '"' + (c._farm ? ' class="hist-farm-row"' : '') + '>' +
         '<td class="h-dt" data-l="Fecha">' + fmtD(c.fecha) + '</td>' +
         '<td data-l="Paciente">' + esc(c.paciente ? c.paciente.nombre : '—') + (c.no_vino ? ' <span class="sbadge badge-novino">👻 No vino</span>' : '') + (c.paciente && c.paciente.telefono ? '<div style="font-size:10px;color:var(--g4)">' + esc(c.paciente.telefono) + '</div>' : '') + '</td>' +
         (ES_DOCTORA() ? '' : '<td data-l="Doctor">' + personaPill(c.doctor_id, c.doctor ? c.doctor.nombre : nombreDoctora(c.doctor_id)) + '</td>') +
         '<td data-l="Servicio">' + servicioPill(c) + '</td>' +
-        '<td data-l="Monto"><b style="color:var(--teal)">' + (c.no_vino ? '—' : money(ingreso(c))) + '</b></td>' +
+        '<td data-l="Monto"><b style="color:' + (c._farm ? '#7D3C98' : 'var(--teal)') + '">' + (c.no_vino ? '—' : money(ingreso(c))) + '</b></td>' +
         '<td data-l="Pago">' + pago + '</td>' +
         '<td data-l="N° Factura"><input type="text" class="hist-inline-factura' + (c.factura && !c.num_factura ? ' pendiente' : '') + (c.num_factura ? ' ok' : '') + '" data-fac="' + esc(c.id) + '" value="' + esc(c.num_factura || '') + '" placeholder="' + (c.factura ? 'Pendiente' : '—') + '" maxlength="40" aria-label="Número de factura"></td>' +
         '<td data-l="Acciones"><span style="display:inline-flex;gap:5px">' + (c._farm
@@ -2800,7 +2821,8 @@ $('ex-go').onclick = async () => {
   if (d > h) [d, h] = [h, d];
   const btn = $('ex-go'); btn.disabled = true; btn.textContent = 'Preparando…';
   try {
-    const rows = filtrarHistorial(H.farm ? (await cargarVentasFarmacia(d, h)).map(comoMovimiento) : await cargarConsultas(d, h, false)).sort((a, b) => a.fecha.localeCompare(b.fecha));
+    const [cs, fv] = await Promise.all([H.farm ? [] : cargarConsultas(d, h, false), H.linea === 'serv' ? [] : cargarVentasFarmacia(d, h).then(r => r.map(comoMovimiento))]);
+    const rows = filtrarHistorial(mezclarMovs(cs, fv)).sort((a, b) => a.fecha.localeCompare(b.fecha));
     if (!rows.length) { toast(H.farm ? 'No hay ventas de farmacia en ese periodo con los filtros activos.' : 'No hay consultas en ese periodo con los filtros activos.'); return; }
     if (H.farm && EX_FMT === 'xlsx') { await exportarExcelFarmacia(rows, d, h); cerrarModal('m-exportar'); return; }
     if (EX_FMT === 'xlsx') await exportarExcel(rows, d, h); else await exportarPDF(rows, d, h);
@@ -3838,7 +3860,7 @@ function apagarRealtime() { try { if (RT) sb.removeChannel(RT); } catch (e) { /*
 
 function reiniciarEstadoConsultas() {
   H.per = null; H.sel = 'hoy'; H.rows = []; H.q = ''; H.doc = ''; H.mot = ''; H.med = ''; H.tg = new Set(); H.limite = 200; H.papelera = false;
-  H.farm = false;
+  H.farm = false; H.linea = 'todo'; H.farmKpi = [];
   C.dia = null; C.mes = null; C.doc = ''; C.vista = 'cierre-por-doctor-panel'; C.modo = 'dia'; C_ROWS = []; C_ROWS_ALL = [];
   D.modo = 'mes'; D.rec = '30'; D.mes = null; D.doc = ''; D.tipo = ''; D.tend = 'dia'; D.ig = 'dia';
   Object.keys(D.charts).forEach(k => { try { D.charts[k].destroy(); } catch (e) { /* nada */ } }); D.charts = {};
