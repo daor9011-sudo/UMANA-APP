@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="app-version" content="2026.11.04-9"/>
+<meta name="app-version" content="2026.11.04-11"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>UMANA Productividad</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -3134,12 +3134,22 @@ const FLUJO_CSS = `
 .fx-sum>div{flex:1;padding:10px 16px;min-width:0}.fx-sum>div+div{border-left:1px solid #E3E8F0}
 .fx-sum small{display:block;font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#8794A8}.fx-sum b{font-size:19px;font-family:'Bricolage Grotesque','Helvetica Neue',Arial,sans-serif}
 .fx-sum .fin{background:#E9F7F0}
-.fx-row{display:grid;grid-template-columns:200px minmax(0,1fr) 110px 110px 120px;gap:14px;align-items:center;padding:10px 14px;border:1px solid #E3E8F0;border-radius:10px;margin-bottom:6px;background:#fff}
+.fx-row{display:grid;grid-template-columns:180px minmax(0,1fr) 100px 95px 95px 115px 150px;gap:14px;align-items:center;padding:10px 14px;border:1px solid #E3E8F0;border-radius:10px;margin-bottom:6px;background:#fff}
 .fx-row .fx-k{font-size:10px;color:#8794A8;font-weight:700;text-transform:uppercase;letter-spacing:.4px}.fx-row .fx-v{font-weight:700;font-size:13.5px}
 .fx-row .net .fx-v{font-size:16px;color:#1F8A5B;font-family:'Bricolage Grotesque','Helvetica Neue',Arial,sans-serif}.fx-row.neg .net .fx-v{color:#C2502E}
 .fx-row>div:nth-child(n+3){text-align:right}
 .fx-row .det{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;border-top:1px dashed #E3E8F0;padding-top:8px;text-align:left!important}
-.fx-row.gen{background:#FFFBF8;border-style:dashed}
+.fx-row.gen{background:#FFFBF8;border-style:dashed}.fx-row.ok{background:#F6FBF8}.fx-row.ok .net .fx-v{color:#14764f}
+.fx-ent{color:#2F6FD0!important}.fx-bar .e{background:repeating-linear-gradient(135deg,#9DB9E6 0 4px,#C9D9F3 4px 8px)}
+.fx-chip.ent{background:#EEF4FC;color:#1B4F9E;border-color:#BCD0EE}
+.fx-act{text-align:right}.fx-btn{border:1px solid #2ABFBF;background:#E8FAFA;color:#0B6B6B;border-radius:9px;padding:7px 10px;font:700 11.5px var(--font-b,inherit);cursor:pointer;white-space:nowrap}.fx-btn:hover{background:#2ABFBF;color:#fff}
+.fx-sum>div{flex:1}
+.fj-seg{display:inline-flex;border:1px solid var(--g2,#e2e8f4);border-radius:10px;overflow:hidden;background:#fff}.fj-seg button{border:0;background:#fff;padding:8px 16px;font:700 12.5px var(--font-b,inherit);color:#5B6B84;cursor:pointer}.fj-seg button.act{background:#0B1628;color:#fff}
+.fx-ent-h{margin:18px 0 8px;font-weight:800;font-size:13px;display:flex;justify-content:space-between;gap:8px}.fx-ent-h span{font-weight:600;color:#5B6B84;font-size:12px}
+.fx-ent-it{display:grid;grid-template-columns:110px 190px minmax(0,1fr) 120px 32px;gap:12px;align-items:center;padding:8px 12px;border:1px solid #E3E8F0;border-radius:10px;margin-bottom:5px;font-size:12.5px;background:#fff}
+.fx-ent-it .f{color:#5B6B84;font-weight:600}.fx-ent-it .r small{display:block;color:#8794A8;font-size:11px}.fx-ent-it .mo{text-align:right;font-weight:800;color:#2F6FD0}
+.ent-body{padding:4px 2px 2px;display:flex;flex-direction:column;gap:12px}.ent-g{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ent-doc{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#F4F8F6;border:1px solid #CFE9DD;border-radius:10px;padding:10px 12px}.ent-doc .p{font-size:12px;color:#5B6B84}.ent-doc .p b{color:#14764f;font-size:15px}
 .fx-aviso{font-size:11.5px;color:#7A4D00;background:#FDF1DC;border:1px solid #F0C36D;border-radius:10px;padding:8px 12px;margin-bottom:12px}
 .fx-uno{display:flex;flex-direction:column;gap:6px;padding:2px 2px 0}.fx-fl .fx-uno .fx-dots{font-size:9.5px}.fx-fl .fx-uno .fx-chip{font-size:9px}
 .fx-vacio{color:#8794A8;font-size:12.5px;padding:10px 2px}
@@ -3152,8 +3162,9 @@ const FLUJO_CSS = `
 .fj-fecha:hover{background:#F7FAFC}.fj-fecha .t{font-family:var(--font-d,'Bricolage Grotesque',Arial);font-weight:800;font-size:14.5px;color:#0B1628;white-space:nowrap}.fj-fecha .s{font-size:10.5px;color:#8794A8;font-weight:600;min-height:12px}
 #fj-pick,#fj-pickm{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;left:50%;bottom:0}
 .fj-rg{display:inline-flex;align-items:center;gap:6px}.fj-rg .sep{font-size:12px;color:#8794A8}
-@media (max-width:640px){.fj-filtros{display:grid;grid-template-columns:1fr 1fr}.fj-filtros #fj-per,.fj-filtros #fj-doc,.fj-nav,.fj-rg{grid-column:1/-1;max-width:none;margin-left:0}.fj-fecha{min-width:0;flex:1}.fj-fecha .t{font-size:13.5px;white-space:normal;text-align:center}.fj-rg input{flex:1;min-width:0}}
-@media (max-width:700px){.fx-row{grid-template-columns:1fr 1fr}.fx-row>div:nth-child(2){grid-column:1/-1}.fx-row>div:nth-child(n+3){text-align:left}.fx-sum{flex-wrap:wrap}.fx-sum>div{min-width:50%}}
+.fj-filtros{row-gap:8px}
+@media (max-width:640px){.fj-filtros{display:grid;grid-template-columns:1fr 1fr}.fj-seg{grid-column:1/-1}.fj-seg button{flex:1}.fj-filtros #fj-per,.fj-filtros #fj-doc,.fj-nav,.fj-rg{grid-column:1/-1;max-width:none;margin-left:0}.fj-fecha{min-width:0;flex:1}.fj-fecha .t{font-size:13.5px;white-space:normal;text-align:center}.fj-rg input{flex:1;min-width:0}}
+@media (max-width:700px){.fx-ent-it{grid-template-columns:1fr auto;}.fx-ent-it .r{grid-column:1/-1}.fx-row{grid-template-columns:1fr 1fr}.fx-act{grid-column:1/-1;text-align:left}.fx-act .fx-btn{width:100%}.fx-row>div:nth-child(2){grid-column:1/-1}.fx-row>div:nth-child(n+3){text-align:left}.fx-sum{flex-wrap:wrap}.fx-sum>div{min-width:50%}}
 /* en el flash report (hoja carta, mismo estilo que sus demás secciones) */
 .fx-fl .fx-sum{border-radius:10px;margin-bottom:8px}.fx-fl .fx-sum>div{padding:8px 12px}.fx-fl .fx-sum small{font-size:8px}.fx-fl .fx-sum b{font-size:15px}
 .fx-fl .fx-row{grid-template-columns:150px minmax(0,1fr) 78px 78px 86px;gap:10px;padding:7px 10px;border-radius:8px;margin-bottom:5px}
@@ -3169,9 +3180,9 @@ async function flujoGastos(desde, hasta) {
   } catch (e) { console.warn('[flujo de caja] sin gastos', e); return null; }
 }
 /* rows: movimientos (servicios + farmacia) · gastos: salidas en efectivo (null = sin permiso) · docId: solo un doctor */
-function flujoDatos(rows, gastos, docId) {
+function flujoDatos(rows, gastos, docId, entregas) {
   const docs = {}, gen = [];
-  const doc = id => docs[id] || (docs[id] = { id, nombre: nombreDoctora(id), lin: { cons: 0, serv: 0, proc: 0, farm: 0 }, cob: 0, gastos: [], g: 0 });
+  const doc = id => docs[id] || (docs[id] = { id, nombre: nombreDoctora(id), lin: { cons: 0, serv: 0, proc: 0, farm: 0 }, cob: 0, gastos: [], g: 0, entregas: [], e: 0 });
   rows.filter(c => !c.no_vino && (!docId || c.doctor_id === docId)).forEach(c => {
     const ef = pagosDe(c).filter(([m, x], i) => m === 'Efectivo' && (i === 0 || x > 0)).reduce((a, p) => a + num(p[1]), 0);
     if (!(ef > 0)) return;
@@ -3183,103 +3194,166 @@ function flujoDatos(rows, gastos, docId) {
     if (g.doctor_id) { if (docId && g.doctor_id !== docId) return; const d = doc(g.doctor_id); d.gastos.push(x); d.g = num(d.g + x.monto); }
     else if (!docId) gen.push(x);
   });
-  const lista = Object.values(docs).map(d => Object.assign(d, { net: num(d.cob - d.g) })).sort((a, b) => b.cob - a.cob || a.nombre.localeCompare(b.nombre));
-  const tc = sumar(lista, d => d.cob), tgd = sumar(lista, d => d.g), tgg = sumar(gen, x => x.monto);
-  return { docs: lista, gen, tc, tg: num(tgd + tgg), tgg, tn: num(tc - tgd - tgg), sinGastos: gastos === null };
+  (entregas || []).forEach(e => { if (!e.doctor_id || (docId && e.doctor_id !== docId)) return; const d = doc(e.doctor_id); d.entregas.push(e); d.e = num(d.e + num(e.monto)); });
+  const lista = Object.values(docs).map(d => Object.assign(d, { net: num(d.cob - d.g), pend: num(d.cob - d.g - d.e) })).sort((a, b) => b.cob - a.cob || a.nombre.localeCompare(b.nombre));
+  const tc = sumar(lista, d => d.cob), tgd = sumar(lista, d => d.g), tgg = sumar(gen, x => x.monto), te = sumar(lista, d => d.e);
+  return { docs: lista, gen, tc, tg: num(tgd + tgg), tgg, te, tn: num(tc - tgd - tgg), tp: num(tc - tgd - tgg - te), sinGastos: gastos === null, sinEntregas: entregas === null };
 }
 function flujoHtml(fd, o) {
   o = o || {};
-  const m = o.flash ? fm0 : money;
-  const mx = Math.max(1, ...fd.docs.map(d => Math.max(d.cob, d.g)));
+  const m = money;
+  const mx = Math.max(1, ...fd.docs.map(d => Math.max(d.cob, d.g + d.e)));
   const tono = id => DOCTORAS.findIndex(d => d.id === id) % 2 ? 'd2' : 'd1';
   const chips = gs => gs.map(x => '<span class="fx-chip">➖ ' + esc(x.desc) + ' · ' + m(x.monto) + '</span>').join('');
+  const echips = es => es.map(x => '<span class="fx-chip ent">✓ Entregado ' + m(x.monto) + ' · ' + esc(fjDiaCorto(x.fecha)) + ' · ' + esc(x.recibio) + '</span>').join('');
   const bar = d => '<div class="fx-bar">' + FLUJO_LINEAS.filter(l => d.lin[l[0]] > 0).map(l => '<span style="width:' + (d.lin[l[0]] / mx * 100).toFixed(2) + '%;background:' + l[2] + '" title="' + l[1] + '"></span>').join('') +
-    (d.g > 0 ? '<span class="g" style="width:' + (d.g / mx * 100).toFixed(2) + '%" title="Gastos en efectivo"></span>' : '') + '</div>';
+    (d.g > 0 ? '<span class="g" style="width:' + (d.g / mx * 100).toFixed(2) + '%" title="Gastos en efectivo"></span>' : '') +
+    (d.e > 0 ? '<span class="e" style="width:' + (d.e / mx * 100).toFixed(2) + '%" title="Efectivo entregado"></span>' : '') + '</div>';
   const dots = d => '<div class="fx-dots">' + FLUJO_LINEAS.filter(l => d.lin[l[0]] > 0).map(l => '<span><i style="background:' + l[2] + '"></i>' + l[1] + ' ' + m(d.lin[l[0]]) + '</span>').join('') + '</div>';
   const celda = (k, v, cls) => '<div' + (cls ? ' class="' + cls + '"' : '') + '><div class="fx-k">' + k + '</div><div class="fx-v">' + v + '</div></div>';
-  const filas = fd.docs.map(d => '<div class="fx-row' + (d.net < 0 ? ' neg' : '') + '" data-doc="' + esc(d.id) + '"><div><span class="fx-pill ' + tono(d.id) + '">' + esc(corto(d.nombre)) + '</span></div><div>' + bar(d) + '</div>' +
-    celda('Cobrado', m(d.cob)) + celda('Gastos', d.g ? '<span class="fx-neg">−' + m(d.g) + '</span>' : (fd.sinGastos ? '<span class="fx-mut">n/d</span>' : '—')) + celda('Neto', m(d.net), 'net') +
-    '<div class="det">' + dots(d) + chips(d.gastos) + '</div></div>').join('');
+  const btn = d => fd.sinEntregas ? '<div></div>' : '<div class="fx-act"><button type="button" class="fx-btn" data-entrega="' + esc(d.id) + '"' + (d.pend > 0 ? '' : ' title="No hay efectivo pendiente"') + '>💵 Efectivo entregado</button></div>';
+  const filas = fd.docs.map(d => '<div class="fx-row' + (d.pend < 0 ? ' neg' : d.pend === 0 && d.cob > 0 ? ' ok' : '') + '" data-doc="' + esc(d.id) + '"><div><span class="fx-pill ' + tono(d.id) + '">' + esc(corto(d.nombre)) + '</span></div><div>' + bar(d) + '</div>' +
+    celda('Cobrado', m(d.cob)) + celda('Gastos', d.g ? '<span class="fx-neg">−' + m(d.g) + '</span>' : (fd.sinGastos ? '<span class="fx-mut">n/d</span>' : '—')) +
+    celda('Entregado', d.e ? '<span class="fx-ent">−' + m(d.e) + '</span>' : '—') + celda('Por entregar', d.pend === 0 && d.cob > 0 ? '✓ ' + m(0) : m(d.pend), 'net') + btn(d) +
+    '<div class="det">' + dots(d) + chips(d.gastos) + echips(d.entregas) + '</div></div>').join('');
   const gen = fd.gen.length ? '<div class="fx-row gen"><div><span class="fx-pill gen">🏥 General de la clínica</span></div><div>' + chips(fd.gen) + '</div><div></div>' +
-    celda('Gastos', '<span class="fx-neg">−' + m(fd.tgg) + '</span>') + celda('Sale de caja', '<span class="fx-neg">−' + m(fd.tgg) + '</span>', 'net') + '</div>' : '';
+    celda('Gastos', '<span class="fx-neg">−' + m(fd.tgg) + '</span>') + '<div></div>' + celda('Sale de caja', '<span class="fx-neg">−' + m(fd.tgg) + '</span>', 'net') + '<div></div></div>' : '';
   const sum = '<div class="fx-sum"><div><small>💵 Cobrado en efectivo</small><b>' + m(fd.tc) + '</b></div><div><small>➖ Gastos en efectivo</small><b class="fx-neg">' + (fd.tg ? '−' + m(fd.tg) : m(0)) + '</b></div>' +
-    '<div class="fin"><small>🏦 ' + (o.uno ? 'Neto que entrega' : 'Debe haber en caja') + '</small><b class="fx-pos">' + m(fd.tn) + '</b></div></div>';
+    '<div><small>✓ Efectivo entregado</small><b class="fx-ent">' + (fd.te ? '−' + m(fd.te) : m(0)) + '</b></div>' +
+    '<div class="fin"><small>🏦 Debe haber en caja</small><b class="fx-pos">' + m(fd.tp) + '</b></div></div>';
   const vacio = !fd.docs.length && !fd.gen.length;
-  // Hoja de un doctor en el flash: la franja y debajo de qué vino su efectivo y qué gastos se le restaron
-  const unoDet = o.uno && fd.docs[0] ? '<div class="fx-uno">' + dots(fd.docs[0]) + (fd.docs[0].gastos.length ? '<div style="display:flex;flex-wrap:wrap;gap:4px">' + chips(fd.docs[0].gastos) + '</div>' : '<span class="fx-mut">Sin gastos en efectivo</span>') + '</div>' : '';
-  return '<div class="fx-wrap' + (o.flash ? ' fx-fl' : '') + '">' + (fd.sinGastos && !o.flash ? '<div class="fx-aviso">Tu usuario no ve los gastos: aquí solo aparece el efectivo cobrado.</div>' : '') +
-    sum + (vacio ? '<div class="fx-vacio">Sin movimientos en efectivo en este periodo.</div>' : o.uno ? unoDet : filas + gen) + '</div>';
+  return '<div class="fx-wrap">' + (fd.sinGastos ? '<div class="fx-aviso">Tu usuario no ve los gastos: aquí solo aparece el efectivo cobrado.</div>' : '') +
+    (fd.sinEntregas ? '<div class="fx-aviso">Falta activar el registro de efectivo entregado en la base (cambio 12).</div>' : '') +
+    sum + (vacio ? '<div class="fx-vacio">Sin movimientos en efectivo en este periodo.</div>' : filas + gen) + '</div>';
 }
-/* ── Pestaña principal "💵 Flujo de caja" (no está dentro del Cierre) ── */
-const FJ = { modo: 'hoy', dia: null, mes: null, desde: null, hasta: null, doc: '', seq: 0 };
-/* Mes: del 1 al último día (o a hoy si es el mes en curso) · Hoy/Día: un día · Rango: desde–hasta */
+/* Entregas de efectivo del periodo (null si la tabla aún no existe o no hay permiso) */
+async function flujoEntregas(desde, hasta) {
+  try {
+    const r = await sb.from('entregas_efectivo').select('id,fecha,doctor_id,monto,recibio,notas,creado_por,created_at').gte('fecha', desde).lte('fecha', hasta).order('fecha', { ascending: false }).order('created_at', { ascending: false });
+    if (r.error) throw r.error;
+    return r.data || [];
+  } catch (e) { console.warn('[flujo de caja] sin entregas', e); return null; }
+}
+/* ── Pestaña principal "💵 Flujo de caja": por mes (predeterminado) o por día, con flechas ── */
+const FJ = { modo: 'mes', dia: null, mes: null, doc: '', seq: 0, fd: null, entregas: [] };
 const fjRango = () => {
   const t = todayLocal();
   if (FJ.modo === 'mes') { const ini = FJ.mes + '-01', fin = finMes(ini); return [ini, fin > t && ini <= t ? t : fin]; }
-  if (FJ.modo === 'hoy') return [t, t];
-  if (FJ.modo === 'dia') return [FJ.dia, FJ.dia];
-  return [FJ.desde, FJ.hasta];
+  return [FJ.dia, FJ.dia];
 };
-const fjDiaLargo = s => capF(parseISO(s).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).replace(',', ','));
+const fjDiaLargo = s => capF(parseISO(s).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
 const fjDiaCorto = s => parseISO(s).toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '');
 function renderFlujo() {
-  if (!FJ.dia) { FJ.dia = todayLocal(); FJ.mes = FJ.dia.slice(0, 7); FJ.desde = inicioMes(FJ.dia); FJ.hasta = FJ.dia; }
+  if (!FJ.dia) { FJ.dia = todayLocal(); FJ.mes = FJ.dia.slice(0, 7); }
   if (!$('fj-cont')) {
     $('body-flujo').innerHTML =
       '<div class="fj-filtros">' +
-        '<select id="fj-per" aria-label="Periodo"><option value="mes">🗓️ Mes</option><option value="hoy">📅 Hoy</option><option value="dia">📆 Día específico</option><option value="rango">↔ Rango de fechas</option></select>' +
+        '<div class="fj-seg" role="group" aria-label="Ver por"><button type="button" id="fj-m-mes" class="act">Mes</button><button type="button" id="fj-m-dia">Día</button></div>' +
         '<div class="fj-nav" id="fj-nav"><button type="button" class="fj-ar" id="fj-prev" aria-label="Anterior">‹</button>' +
           '<button type="button" class="fj-fecha" id="fj-lbl" title="Elegir fecha"><span class="t" id="fj-lbl-t">—</span><span class="s" id="fj-lbl-s"></span></button>' +
           '<input type="date" id="fj-pick" tabindex="-1" aria-label="Elegir día"><input type="month" id="fj-pickm" tabindex="-1" aria-label="Elegir mes">' +
           '<button type="button" class="fj-ar" id="fj-next" aria-label="Siguiente">›</button></div>' +
-        '<span class="fj-rg" id="fj-rg"><input type="date" id="fj-desde" aria-label="Desde"><span class="sep">a</span><input type="date" id="fj-hasta" aria-label="Hasta"></span>' +
         '<select id="fj-doc" aria-label="Doctor"></select>' +
       '</div>' +
-      '<div id="fj-cont" style="margin-top:14px"></div>';
+      '<div id="fj-cont" style="margin-top:14px"></div><div id="fj-ents"></div>';
     $('fj-doc').innerHTML = opt(DOCTORAS.map(d => ({ v: d.id, t: d.nombre })), 'Todos los doctores');
     $('fj-doc').onchange = () => { FJ.doc = $('fj-doc').value; cargarFlujo(); };
-    $('fj-per').onchange = () => { FJ.modo = $('fj-per').value; if (FJ.modo === 'mes') FJ.mes = todayLocal().slice(0, 7); cargarFlujo(); };
+    $('fj-m-mes').onclick = () => { FJ.modo = 'mes'; FJ.mes = FJ.dia.slice(0, 7); cargarFlujo(); };
+    $('fj-m-dia').onclick = () => { FJ.modo = 'dia'; if (FJ.dia.slice(0, 7) !== FJ.mes) FJ.dia = FJ.mes === todayLocal().slice(0, 7) ? todayLocal() : finMes(FJ.mes + '-01'); cargarFlujo(); };
     const mover = n => {
       if (FJ.modo === 'mes') { const [y, m] = FJ.mes.split('-').map(Number); FJ.mes = isoLocal(new Date(y, m - 1 + n, 1)).slice(0, 7); }
-      else { FJ.dia = addDays(FJ.modo === 'hoy' ? todayLocal() : FJ.dia, n); FJ.modo = FJ.dia === todayLocal() ? 'hoy' : 'dia'; }
+      else FJ.dia = addDays(FJ.dia, n);
       cargarFlujo();
     };
     $('fj-prev').onclick = () => mover(-1); $('fj-next').onclick = () => mover(1);
-    // Tocar la fecha abre el calendario (día o mes según el periodo)
     $('fj-lbl').onclick = () => { const i = FJ.modo === 'mes' ? $('fj-pickm') : $('fj-pick'); try { i.showPicker(); } catch (e) { i.focus(); i.click(); } };
-    $('fj-pick').onchange = () => { const v = $('fj-pick').value; if (!v) return; FJ.dia = v; FJ.modo = v === todayLocal() ? 'hoy' : 'dia'; cargarFlujo(); };
+    $('fj-pick').onchange = () => { const v = $('fj-pick').value; if (!v) return; FJ.dia = v; cargarFlujo(); };
     $('fj-pickm').onchange = () => { const v = $('fj-pickm').value; if (!v) return; FJ.mes = v; cargarFlujo(); };
-    const rg = () => { let a = $('fj-desde').value, b = $('fj-hasta').value; if (!a || !b) return; if (a > b) [a, b] = [b, a]; FJ.desde = a; FJ.hasta = b; cargarFlujo(); };
-    $('fj-desde').onchange = rg; $('fj-hasta').onchange = rg;
+    $('fj-cont').addEventListener('click', e => { const b = e.target.closest('[data-entrega]'); if (b) abrirEntrega(b.dataset.entrega); });
   }
   return cargarFlujo();
 }
 async function cargarFlujo() {
   if (!$('fj-cont')) return;
   const seq = ++FJ.seq, [d, h] = fjRango(), t = todayLocal();
-  $('fj-per').value = FJ.modo;
-  $('fj-nav').style.display = FJ.modo === 'rango' ? 'none' : '';
-  $('fj-rg').style.display = FJ.modo === 'rango' ? '' : 'none'; $('fj-desde').value = FJ.desde; $('fj-hasta').value = FJ.hasta;
+  $('fj-m-mes').classList.toggle('act', FJ.modo === 'mes'); $('fj-m-dia').classList.toggle('act', FJ.modo === 'dia');
   if (FJ.modo === 'mes') {
     $('fj-lbl-t').textContent = labelMes(FJ.mes);
     $('fj-lbl-s').textContent = 'del ' + fjDiaCorto(d) + ' al ' + fjDiaCorto(h) + (FJ.mes === t.slice(0, 7) ? ' · mes en curso' : '');
     $('fj-next').disabled = FJ.mes >= t.slice(0, 7); $('fj-pickm').value = FJ.mes;
   } else {
-    const dia = FJ.modo === 'hoy' ? t : FJ.dia;
-    $('fj-lbl-t').textContent = fjDiaLargo(dia);
-    $('fj-lbl-s').textContent = dia === t ? 'hoy' : dia === addDays(t, -1) ? 'ayer' : '';
-    $('fj-next').disabled = dia >= t; $('fj-pick').value = dia;
+    $('fj-lbl-t').textContent = fjDiaLargo(FJ.dia);
+    $('fj-lbl-s').textContent = FJ.dia === t ? 'hoy' : FJ.dia === addDays(t, -1) ? 'ayer' : '';
+    $('fj-next').disabled = FJ.dia >= t; $('fj-pick').value = FJ.dia;
   }
   $('sub-flujo').textContent = '';
-  $('fj-cont').innerHTML = '<div class="empty-note">Cargando…</div>';
+  $('fj-cont').innerHTML = '<div class="empty-note">Cargando…</div>'; $('fj-ents').innerHTML = '';
   try {
-    const [rows, gastos] = await Promise.all([cargarMovimientos(d, h), flujoGastos(d, h)]);
+    const [rows, gastos, ents] = await Promise.all([cargarMovimientos(d, h), flujoGastos(d, h), flujoEntregas(d, h)]);
     if (seq !== FJ.seq) return;
-    $('fj-cont').innerHTML = flujoHtml(flujoDatos(rows, gastos, FJ.doc));
+    FJ.fd = flujoDatos(rows, gastos, FJ.doc, ents); FJ.entregas = ents || [];
+    $('fj-cont').innerHTML = flujoHtml(FJ.fd);
+    pintarEntregas();
   } catch (e) {
     console.error('[flujo de caja]', e); if (seq !== FJ.seq) return;
     $('fj-cont').innerHTML = '<div class="empty-note">No se pudo cargar el flujo de caja. ' + esc(traducirError(e)) + '</div>';
   }
+}
+/* Historial de entregas del periodo */
+function pintarEntregas() {
+  const l = FJ.entregas.filter(e => !FJ.doc || e.doctor_id === FJ.doc);
+  if (!l.length) { $('fj-ents').innerHTML = ''; return; }
+  const quien = id => { const p = DOCTORAS.find(x => x.id === id); return p ? p.nombre : (PERFIL && PERFIL.id === id ? PERFIL.nombre : '—'); };
+  $('fj-ents').innerHTML = '<div class="fx-ent-h">✓ Efectivo entregado en el periodo <span>' + l.length + ' entrega' + (l.length === 1 ? '' : 's') + ' · ' + money(sumar(l, e => num(e.monto))) + '</span></div>' +
+    l.map(e => '<div class="fx-ent-it"><div class="f">' + esc(fjDiaCorto(e.fecha)) + '</div><div><span class="fx-pill ' + (DOCTORAS.findIndex(d => d.id === e.doctor_id) % 2 ? 'd2' : 'd1') + '">' + esc(corto(nombreDoctora(e.doctor_id))) + '</span></div>' +
+      '<div class="r">Recibió <b>' + esc(e.recibio) + '</b>' + (e.notas ? '<small>' + esc(e.notas) + '</small>' : '') + '</div><div class="mo">' + money(e.monto) + '</div>' +
+      (ES_ADMIN() ? '<button type="button" class="ic" title="Eliminar entrega" data-delent="' + esc(e.id) + '">🗑</button>' : '<span></span>') + '</div>').join('');
+  $('fj-ents').querySelectorAll('[data-delent]').forEach(b => b.onclick = async () => {
+    const e = FJ.entregas.find(x => x.id === b.dataset.delent); if (!e) return;
+    if (!(await confirmar('Eliminar entrega', 'Se eliminará la entrega de ' + money(e.monto) + ' de ' + nombreDoctora(e.doctor_id) + ' (' + fmtD(e.fecha) + '). Queda registrado en la bitácora.', 'Eliminar'))) return;
+    const r = await sb.from('entregas_efectivo').delete().eq('id', e.id).select('id');
+    if (r.error || !r.data || !r.data.length) { toast('No se pudo eliminar: ' + traducirError(r.error || 'sin permiso')); return; }
+    toast('Entrega eliminada.'); cargarFlujo();
+  });
+}
+/* Registrar "Efectivo entregado" */
+function abrirEntrega(docId) {
+  const d = FJ.fd && FJ.fd.docs.find(x => x.id === docId); if (!d) return;
+  let m = $('m-entrega');
+  if (!m) {
+    document.body.insertAdjacentHTML('beforeend', '<div class="modal-overlay2" id="m-entrega"><div class="modal" role="dialog" aria-labelledby="ent-t" style="max-width:460px">' +
+      '<div class="modal-h"><h3 id="ent-t">💵 Efectivo entregado</h3><button class="x" type="button" id="ent-x">×</button></div>' +
+      '<div class="ent-body"><div class="ent-doc" id="ent-doc"></div>' +
+      '<div class="ent-g"><div class="fi2"><label class="lbl2" for="ent-fecha">Fecha</label><input class="app-input" type="date" id="ent-fecha"></div>' +
+      '<div class="fi2"><label class="lbl2" for="ent-monto">Monto entregado</label><div class="mon2"><span>$</span><input class="app-input" type="number" id="ent-monto" min="0" step="0.01" inputmode="decimal" style="padding-left:22px"></div></div></div>' +
+      '<div class="fi2"><label class="lbl2" for="ent-recibio">¿Quién recibió el efectivo?</label><input class="app-input" id="ent-recibio" maxlength="80" placeholder="Nombre de quien recibe"></div>' +
+      '<div class="fi2"><label class="lbl2" for="ent-notas">Notas (opcional)</label><input class="app-input" id="ent-notas" maxlength="200" placeholder="Ej. sobre cerrado, corte del día"></div>' +
+      '<div class="err hide" id="ent-err"></div>' +
+      '<div style="display:flex;gap:8px;margin-top:6px"><button class="appbtn appbtn-p" type="button" id="ent-save">Registrar entrega</button><button class="appbtn appbtn-s" type="button" id="ent-cancel">Cancelar</button></div></div></div></div>');
+    m = $('m-entrega');
+    $('ent-x').onclick = $('ent-cancel').onclick = () => cerrarModal('m-entrega');
+  }
+  $('ent-doc').innerHTML = '<span class="fx-pill ' + (DOCTORAS.findIndex(x => x.id === docId) % 2 ? 'd2' : 'd1') + '">' + esc(d.nombre) + '</span><span class="p">Por entregar <b>' + money(d.pend) + '</b></span>';
+  $('ent-fecha').value = FJ.modo === 'dia' ? FJ.dia : todayLocal();
+  $('ent-monto').value = d.pend > 0 ? d.pend.toFixed(2) : '';
+  $('ent-recibio').value = ''; $('ent-notas').value = ''; $('ent-err').classList.add('hide');
+  let busy = false;
+  $('ent-save').onclick = async () => {
+    if (busy) return;
+    const monto = num($('ent-monto').value), rec = $('ent-recibio').value.trim(), f = $('ent-fecha').value, falt = [];
+    if (!f) falt.push('fecha'); if (!(monto > 0)) falt.push('monto mayor a cero'); if (rec.length < 2) falt.push('quién recibió');
+    if (falt.length) { $('ent-err').textContent = 'Falta: ' + falt.join(', ') + '.'; $('ent-err').classList.remove('hide'); return; }
+    if (d.pend > 0 && monto > d.pend + 0.004 && !(await confirmar('Monto mayor a lo pendiente', 'Vas a registrar ' + money(monto) + ' y lo pendiente es ' + money(d.pend) + '. ¿Registrar de todos modos?', 'Registrar'))) return;
+    busy = true; $('ent-save').disabled = true;
+    try {
+      const r = await sb.from('entregas_efectivo').insert({ fecha: f, doctor_id: docId, monto: Math.round(monto * 100) / 100, recibio: rec, notas: $('ent-notas').value.trim() || null }).select('id');
+      if (r.error) throw r.error;
+      toast('✓ Entrega registrada.'); cerrarModal('m-entrega'); cargarFlujo();
+    } catch (e) { $('ent-err').textContent = 'No se pudo registrar: ' + traducirError(e); $('ent-err').classList.remove('hide'); }
+    finally { busy = false; $('ent-save').disabled = false; }
+  };
+  ['ent-monto', 'ent-recibio', 'ent-fecha'].forEach(i => $(i).oninput = () => $('ent-err').classList.add('hide'));
+  abrirModal('m-entrega'); setTimeout(() => $('ent-recibio').focus(), 50);
 }
 document.head.insertAdjacentHTML('beforeend', '<style>' + FLUJO_CSS + '</style>');
 async function cargarCierre() {
@@ -3291,14 +3365,14 @@ async function cargarCierre() {
   $('cierre-por-doctor').innerHTML = '<div class="empty-note">Cargando…</div>';
   // Bloques independientes: si el efectivo falla, el resto del cierre se muestra igual.
   const pCons = cargarMovimientos(d, h).then(r => ({ ok: true, r }), e => ({ ok: false, e }));
-  C.gastos = undefined; const pGas = flujoGastos(d, h);
+  C.gastos = undefined; C.entregas = []; const pGas = flujoGastos(d, h), pEnt = flujoEntregas(d, h);
   const rc = await pCons;
   if (seq !== C.seq) return;
   if (!rc.ok) { console.error(rc.e); C_ROWS = []; C_ROWS_ALL = []; ['cierre-por-doctor', 'cierre-por-pago', 'cierre-por-farm'].forEach(id => $(id).innerHTML = '<div class="empty-note">No se pudieron cargar las consultas. ' + esc(traducirError(rc.e)) + '</div>'); }
   else { C_ROWS_ALL = rc.r; C_ROWS = (C.doc ? rc.r.filter(c => c.doctor_id === C.doc) : rc.r); }
   pintarCierre(rc.ok);
   const gs = await pGas; if (seq !== C.seq) return;
-  C.gastos = gs;   // para el flujo de caja del flash report
+  C.gastos = gs; C.entregas = (await pEnt) || [];   // para el flujo de caja del flash report
 }
 function pintarCierre(consOk) {
   if (consOk === undefined) consOk = true;
@@ -3843,7 +3917,7 @@ const FLASH_CSS_LINEAS = `
 .ln4 .lnp{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700}.ln4 .lnp::before{content:'';width:10px;height:10px;border-radius:3px;background:var(--c)}
 .ln4.vac{opacity:.5}.ln4 .pv small .dl{font-size:8px}
 .mr.fxr{grid-template-columns:110px 1fr 62px 28px}.mr.fxr .mn{font-weight:600}.fx-c{font-size:9px;color:#8794A8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fx-sep{border-top:1px dashed #E3E8F0;margin:4px 0 2px}.fx-g{color:#B2402A}.fx-n{color:#14764f}
+.fx-sep{border-top:1px dashed #E3E8F0;margin:4px 0 2px}.fx-e{color:#2F6FD0}.fx-g{color:#B2402A}.fx-n{color:#14764f}
 .al.cuatro{grid-template-columns:repeat(4,1fr)}.al.cuatro .a{padding:9px 10px}
 .stk span{display:flex;align-items:center;justify-content:center;color:#fff;font-size:8.5px;font-weight:800}
 `;
@@ -3913,7 +3987,7 @@ async function flashReunirDatos(docId) {
     anexo.sort((a, b) => b.total - a.total);
   }
   return { esDia, desde, hasta, total, serv, farm, nFarm, nServ: asist.length - nFarm, n: asist.length - nFarm, porCat,
-    noVino: rows.length - asist.length, factPend: asist.filter(c => c.factura && !c.num_factura).length, pros, medios, mix, det, efTr, comp, anexo, lin, nPac: pacs.size, fx: flujoDatos(C_ROWS_ALL, C.gastos === undefined ? null : C.gastos, docId),
+    noVino: rows.length - asist.length, factPend: asist.filter(c => c.factura && !c.num_factura).length, pros, medios, mix, det, efTr, comp, anexo, lin, nPac: pacs.size, fx: flujoDatos(C_ROWS_ALL, C.gastos === undefined ? null : C.gastos, docId, C.entregas || []),
     doc: docId ? nombreDoctora(docId) : (ES_DOCTORA() ? PERFIL.nombre : '') };
 }
 function flashFechaTxt(d) {
@@ -3940,9 +4014,9 @@ function flashReportHtml(d, totalPaginas, paginasExtra) {
   const ml = Object.entries(d.medios).map(([n, v]) => ({ n, serv: v.serv, farm: v.farm, t: num(v.serv + v.farm) })).sort((a, b) => b.t - a.t), mxM = Math.max(1, ...ml.map(x => x.t));
   // Flujo de caja: efectivo cobrado − gastos en efectivo = efectivo por entregar (debajo de la fila 💵 Efectivo)
   const gfx = d.fx.sinGastos ? [] : d.fx.docs.flatMap(x => x.gastos).concat(d.doc ? [] : d.fx.gen);
-  const filasFlujo = gfx.length ? (gfx.length <= 3 ? gfx.map(g => '<div class="mr fxr"><span class="mn fx-g">− Gastos en efectivo</span><span class="fx-c">' + esc(g.desc) + '</span><b class="fx-g">−' + fm0(g.monto) + '</b><span class="mp"></span></div>').join('')
-      : '<div class="mr fxr"><span class="mn fx-g">− Gastos en efectivo</span><span class="fx-c">' + gfx.length + ' gastos</span><b class="fx-g">−' + fm0(d.fx.tg) + '</b><span class="mp"></span></div>') +
-    '<div class="fx-sep"></div><div class="mr fxr"><span class="mn fx-n">= Efectivo por entregar</span><span></span><b class="fx-n">' + fm0(d.fx.tn) + '</b><span class="mp"></span></div>' : '';
+  const efx = (d.fx.docs.flatMap(x => x.entregas) || []).map(e => '<div class="mr fxr"><span class="mn fx-e">− Efectivo entregado</span><span class="fx-c">Recibió ' + esc(e.recibio) + '</span><b class="fx-e">−' + fm0(e.monto) + '</b><span class="mp"></span></div>').join('');
+  const filasFlujo = gfx.length || efx ? (gfx.length > 3 ? '<div class="mr fxr"><span class="mn fx-g">− Gastos en efectivo</span><span class="fx-c">' + gfx.length + ' gastos</span><b class="fx-g">−' + fm0(d.fx.tg) + '</b><span class="mp"></span></div>' : gfx.map(g => '<div class="mr fxr"><span class="mn fx-g">− Gastos en efectivo</span><span class="fx-c">' + esc(g.desc) + '</span><b class="fx-g">−' + fm0(g.monto) + '</b><span class="mp"></span></div>').join('')) + efx +
+    '<div class="fx-sep"></div><div class="mr fxr"><span class="mn fx-n">= Efectivo por entregar</span><span></span><b class="fx-n">' + fm0(d.fx.tp) + '</b><span class="mp"></span></div>' : '';
   const mrow = ml.map(x => '<div class="mr"><span class="mn">' + (PAGO_ICON[x.n] || '💰') + ' ' + esc(x.n) + '</span><div class="mb"><div class="bar" style="width:' + (x.t / mxM * 100).toFixed(1) + '%"><span class="spart" style="width:' + (x.t ? (x.serv / x.t * 100).toFixed(1) : 0) + '%"></span><span class="fpart" style="width:' + (x.t ? (x.farm / x.t * 100).toFixed(1) : 0) + '%"></span></div></div><b>' + fm0(x.t) + '</b><span class="mp">' + (d.total ? Math.round(x.t / d.total * 100) : 0) + '%</span></div>' + (x.n === 'Efectivo' ? filasFlujo : '')).join('') + (ml.some(x => x.n === 'Efectivo') ? '' : filasFlujo);
   const mixL = Object.entries(d.mix).sort((a, b) => b[1].monto - a[1].monto).slice(0, 6), mxX = Math.max(1, ...mixL.map(x => x[1].monto));
   const xrow = mixL.map(([n, v]) => '<div class="xr"><span class="xn">' + esc(n) + '</span><span class="xk">×' + v.n + '</span><div class="xb"><div class="bar t" style="width:' + (v.monto / mxX * 100).toFixed(1) + '%"></div></div><b>' + fm0(v.monto) + '</b></div>').join('');
@@ -3983,7 +4057,7 @@ function flashReportHtml(d, totalPaginas, paginasExtra) {
     '<h2 class="d">Pendientes para cerrar bien</h2><div class="al cuatro">' +
       '<div class="a ' + (d.factPend > 0 ? 'w' : 'o') + '"><b>' + d.factPend + '</b><span>facturas solicitadas<br>sin N° de factura</span></div>' +
       '<div class="a ' + (d.noVino > 0 ? 'w' : 'o') + '"><b>' + d.noVino + '</b><span>pacientes que<br>no vinieron</span></div>' +
-      '<div class="a i"><b>' + fm0(d.fx.sinGastos ? d.fx.tc : d.fx.tn) + '</b><span>en efectivo<br>por entregar</span></div>' +
+      '<div class="a i"><b>' + fm0(d.fx.sinGastos ? num(d.fx.tc - d.fx.te) : d.fx.tp) + '</b><span>en efectivo<br>por entregar</span></div>' +
       '<div class="a i"><b>' + fm0(d.medios.Transferencia ? num(d.medios.Transferencia.serv + d.medios.Transferencia.farm) : 0) + '</b><span>en transferencia<br>para conciliar</span></div>' +
     '</div></div>' +
     '<div class="ft"><span>UMANA Ginecología · Productividad · Cifras al momento de generar el reporte · Confidencial</span><span>Página 1 de ' + (totalPaginas || 1) + '</span></div></div>' +
