@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="app-version" content="2026.11.04-3"/>
+<meta name="app-version" content="2026.11.04-4"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>UMANA Productividad</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -3147,7 +3147,11 @@ const FLUJO_CSS = `
 .fx-aviso{font-size:11.5px;color:#7A4D00;background:#FDF1DC;border:1px solid #F0C36D;border-radius:10px;padding:8px 12px;margin-bottom:12px}
 .fx-uno{display:flex;flex-direction:column;gap:6px;padding:2px 2px 0}.fx-fl .fx-uno .fx-dots{font-size:9.5px}.fx-fl .fx-uno .fx-chip{font-size:9px}
 .fx-vacio{color:#8794A8;font-size:12.5px;padding:10px 2px}
-@media (max-width:640px){#fj-dia,#fj-mes,#fj-fecha,#fj-hoy{grid-column:span 2}#fj-label{grid-column:span 2;min-width:0;align-self:center}#fj-doc{grid-column:1 / -1;max-width:none!important;margin-left:0!important}}
+.fj-filtros{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.fj-filtros select,.fj-filtros input{padding:8px 10px;font-size:12.5px;border:1px solid var(--g2,#e2e8f4);border-radius:8px;background:#fff;color:#0B1628;font-family:inherit;outline:none}
+.fj-filtros #fj-doc{margin-left:auto;max-width:240px}
+.fj-rg{display:inline-flex;align-items:center;gap:6px}.fj-rg .sep{font-size:12px;color:#8794A8}
+@media (max-width:640px){.fj-filtros{display:grid;grid-template-columns:1fr 1fr}.fj-filtros #fj-per,.fj-filtros #fj-doc{grid-column:1/-1;max-width:none;margin-left:0}.fj-filtros #fj-fecha,.fj-rg{grid-column:1/-1}.fj-rg input{flex:1;min-width:0}}
 @media (max-width:700px){.fx-row{grid-template-columns:1fr 1fr}.fx-row>div:nth-child(2){grid-column:1/-1}.fx-row>div:nth-child(n+3){text-align:left}.fx-sum{flex-wrap:wrap}.fx-sum>div{min-width:50%}}
 /* en el flash report (hoja carta, mismo estilo que sus demás secciones) */
 .fx-fl .fx-sum{border-radius:10px;margin-bottom:8px}.fx-fl .fx-sum>div{padding:8px 12px}.fx-fl .fx-sum small{font-size:8px}.fx-fl .fx-sum b{font-size:15px}
@@ -3206,41 +3210,35 @@ function flujoHtml(fd, o) {
     sum + (vacio ? '<div class="fx-vacio">Sin movimientos en efectivo en este periodo.</div>' : o.uno ? unoDet : filas + gen) + '</div>';
 }
 /* ── Pestaña principal "💵 Flujo de caja" (no está dentro del Cierre) ── */
-const FJ = { modo: 'dia', dia: null, mes: null, doc: '', seq: 0 };
-const fjRango = () => FJ.modo === 'dia' ? [FJ.dia, FJ.dia] : [FJ.mes + '-01', finMes(FJ.mes + '-01')];
+const FJ = { modo: 'hoy', dia: null, desde: null, hasta: null, doc: '', seq: 0 };
+const fjRango = () => FJ.modo === 'hoy' ? [todayLocal(), todayLocal()] : FJ.modo === 'dia' ? [FJ.dia, FJ.dia] : [FJ.desde, FJ.hasta];
 function renderFlujo() {
-  if (!FJ.dia) { FJ.dia = todayLocal(); FJ.mes = FJ.dia.slice(0, 7); }
+  if (!FJ.dia) { FJ.dia = todayLocal(); FJ.desde = inicioMes(FJ.dia); FJ.hasta = FJ.dia; }
   if (!$('fj-cont')) {
     $('body-flujo').innerHTML =
-      '<div class="periodo-bar">' +
-        '<button class="sbtn act" id="fj-dia" type="button">📋 Día</button>' +
-        '<button class="sbtn" id="fj-mes" type="button">📅 Mes</button>' +
-        '<button class="sbtn btn-outline" id="fj-prev" type="button" aria-label="Anterior">‹</button>' +
-        '<span class="date-label" id="fj-label">—</span>' +
-        '<button class="sbtn btn-outline" id="fj-next" type="button" aria-label="Siguiente">›</button>' +
-        '<input type="date" id="fj-fecha" aria-label="Fecha">' +
-        '<button class="sbtn btn-outline" id="fj-hoy" type="button">↻ Hoy</button>' +
-        '<select id="fj-doc" style="max-width:240px;margin-left:auto" aria-label="Doctor"></select>' +
+      '<div class="fj-filtros">' +
+        '<select id="fj-per" aria-label="Periodo"><option value="hoy">📅 Hoy</option><option value="dia">📆 Día específico</option><option value="rango">↔ Rango de fechas</option></select>' +
+        '<input type="date" id="fj-fecha" aria-label="Día">' +
+        '<span class="fj-rg" id="fj-rg"><input type="date" id="fj-desde" aria-label="Desde"><span class="sep">a</span><input type="date" id="fj-hasta" aria-label="Hasta"></span>' +
+        '<select id="fj-doc" aria-label="Doctor"></select>' +
       '</div>' +
       '<div id="fj-cont" style="margin-top:14px"></div>';
     $('fj-doc').innerHTML = opt(DOCTORAS.map(d => ({ v: d.id, t: d.nombre })), 'Todos los doctores');
     $('fj-doc').onchange = () => { FJ.doc = $('fj-doc').value; cargarFlujo(); };
-    $('fj-dia').onclick = () => { FJ.modo = 'dia'; cargarFlujo(); };
-    $('fj-mes').onclick = () => { FJ.modo = 'mes'; FJ.mes = FJ.dia.slice(0, 7); cargarFlujo(); };
-    const mover = n => { if (FJ.modo === 'dia') FJ.dia = addDays(FJ.dia, n); else { const [y, m] = FJ.mes.split('-').map(Number); FJ.mes = isoLocal(new Date(y, m - 1 + n, 1)).slice(0, 7); } cargarFlujo(); };
-    $('fj-prev').onclick = () => mover(-1); $('fj-next').onclick = () => mover(1);
-    $('fj-hoy').onclick = () => { FJ.dia = todayLocal(); FJ.mes = FJ.dia.slice(0, 7); cargarFlujo(); };
-    $('fj-fecha').onchange = () => { const v = $('fj-fecha').value; if (!v) return; FJ.dia = v; FJ.mes = v.slice(0, 7); cargarFlujo(); };
+    $('fj-per').onchange = () => { FJ.modo = $('fj-per').value; cargarFlujo(); };
+    $('fj-fecha').onchange = () => { const v = $('fj-fecha').value; if (!v) return; FJ.dia = v; cargarFlujo(); };
+    const rg = () => { let a = $('fj-desde').value, b = $('fj-hasta').value; if (!a || !b) return; if (a > b) [a, b] = [b, a]; FJ.desde = a; FJ.hasta = b; cargarFlujo(); };
+    $('fj-desde').onchange = rg; $('fj-hasta').onchange = rg;
   }
   return cargarFlujo();
 }
 async function cargarFlujo() {
   if (!$('fj-cont')) return;
   const seq = ++FJ.seq, [d, h] = fjRango();
-  $('fj-dia').classList.toggle('act', FJ.modo === 'dia'); $('fj-mes').classList.toggle('act', FJ.modo === 'mes');
-  $('fj-label').textContent = FJ.modo === 'dia' ? labelDia(FJ.dia) : labelMes(FJ.mes);
-  $('fj-fecha').value = FJ.dia;
-  $('sub-flujo').textContent = FJ.modo === 'dia' ? fmtD(FJ.dia) : labelMes(FJ.mes);
+  $('fj-per').value = FJ.modo;
+  $('fj-fecha').style.display = FJ.modo === 'dia' ? '' : 'none'; $('fj-fecha').value = FJ.dia;
+  $('fj-rg').style.display = FJ.modo === 'rango' ? '' : 'none'; $('fj-desde').value = FJ.desde; $('fj-hasta').value = FJ.hasta;
+  $('sub-flujo').textContent = d === h ? labelDia(d) : fmtD(d) + ' – ' + fmtD(h);
   $('fj-cont').innerHTML = '<div class="empty-note">Cargando…</div>';
   try {
     const [rows, gastos] = await Promise.all([cargarMovimientos(d, h), flujoGastos(d, h)]);
