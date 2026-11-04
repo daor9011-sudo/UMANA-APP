@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="app-version" content="2026.11.04-7"/>
+<meta name="app-version" content="2026.11.04-9"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>UMANA Productividad</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -3146,8 +3146,13 @@ const FLUJO_CSS = `
 .fj-filtros{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .fj-filtros select,.fj-filtros input{padding:8px 10px;font-size:12.5px;border:1px solid var(--g2,#e2e8f4);border-radius:8px;background:#fff;color:#0B1628;font-family:inherit;outline:none}
 .fj-filtros #fj-doc{margin-left:auto;max-width:240px}
+.fj-nav{display:inline-flex;align-items:stretch;border:1px solid var(--g2,#e2e8f4);border-radius:10px;background:#fff;position:relative;overflow:hidden}
+.fj-ar{border:0;background:#fff;color:#1B3A6B;font-size:20px;font-weight:700;width:38px;cursor:pointer;line-height:1}.fj-ar:hover{background:#F1F4F9}.fj-ar:disabled{color:#CBD3DF;cursor:default;background:#fff}
+.fj-fecha{border:0;border-left:1px solid var(--g2,#e2e8f4);border-right:1px solid var(--g2,#e2e8f4);background:#fff;padding:5px 16px;min-width:270px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:inherit}
+.fj-fecha:hover{background:#F7FAFC}.fj-fecha .t{font-family:var(--font-d,'Bricolage Grotesque',Arial);font-weight:800;font-size:14.5px;color:#0B1628;white-space:nowrap}.fj-fecha .s{font-size:10.5px;color:#8794A8;font-weight:600;min-height:12px}
+#fj-pick,#fj-pickm{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;left:50%;bottom:0}
 .fj-rg{display:inline-flex;align-items:center;gap:6px}.fj-rg .sep{font-size:12px;color:#8794A8}
-@media (max-width:640px){.fj-filtros{display:grid;grid-template-columns:1fr 1fr}.fj-filtros #fj-per,.fj-filtros #fj-doc{grid-column:1/-1;max-width:none;margin-left:0}.fj-filtros #fj-fecha,.fj-rg{grid-column:1/-1}.fj-rg input{flex:1;min-width:0}}
+@media (max-width:640px){.fj-filtros{display:grid;grid-template-columns:1fr 1fr}.fj-filtros #fj-per,.fj-filtros #fj-doc,.fj-nav,.fj-rg{grid-column:1/-1;max-width:none;margin-left:0}.fj-fecha{min-width:0;flex:1}.fj-fecha .t{font-size:13.5px;white-space:normal;text-align:center}.fj-rg input{flex:1;min-width:0}}
 @media (max-width:700px){.fx-row{grid-template-columns:1fr 1fr}.fx-row>div:nth-child(2){grid-column:1/-1}.fx-row>div:nth-child(n+3){text-align:left}.fx-sum{flex-wrap:wrap}.fx-sum>div{min-width:50%}}
 /* en el flash report (hoja carta, mismo estilo que sus demás secciones) */
 .fx-fl .fx-sum{border-radius:10px;margin-bottom:8px}.fx-fl .fx-sum>div{padding:8px 12px}.fx-fl .fx-sum small{font-size:8px}.fx-fl .fx-sum b{font-size:15px}
@@ -3206,23 +3211,44 @@ function flujoHtml(fd, o) {
     sum + (vacio ? '<div class="fx-vacio">Sin movimientos en efectivo en este periodo.</div>' : o.uno ? unoDet : filas + gen) + '</div>';
 }
 /* ── Pestaña principal "💵 Flujo de caja" (no está dentro del Cierre) ── */
-const FJ = { modo: 'mes', dia: null, desde: null, hasta: null, doc: '', seq: 0 };
-const fjRango = () => FJ.modo === 'mes' ? [inicioMes(todayLocal()), todayLocal()] : FJ.modo === 'hoy' ? [todayLocal(), todayLocal()] : FJ.modo === 'dia' ? [FJ.dia, FJ.dia] : [FJ.desde, FJ.hasta];
+const FJ = { modo: 'hoy', dia: null, mes: null, desde: null, hasta: null, doc: '', seq: 0 };
+/* Mes: del 1 al último día (o a hoy si es el mes en curso) · Hoy/Día: un día · Rango: desde–hasta */
+const fjRango = () => {
+  const t = todayLocal();
+  if (FJ.modo === 'mes') { const ini = FJ.mes + '-01', fin = finMes(ini); return [ini, fin > t && ini <= t ? t : fin]; }
+  if (FJ.modo === 'hoy') return [t, t];
+  if (FJ.modo === 'dia') return [FJ.dia, FJ.dia];
+  return [FJ.desde, FJ.hasta];
+};
+const fjDiaLargo = s => capF(parseISO(s).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).replace(',', ','));
+const fjDiaCorto = s => parseISO(s).toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '');
 function renderFlujo() {
-  if (!FJ.dia) { FJ.dia = todayLocal(); FJ.desde = inicioMes(FJ.dia); FJ.hasta = FJ.dia; }
+  if (!FJ.dia) { FJ.dia = todayLocal(); FJ.mes = FJ.dia.slice(0, 7); FJ.desde = inicioMes(FJ.dia); FJ.hasta = FJ.dia; }
   if (!$('fj-cont')) {
     $('body-flujo').innerHTML =
       '<div class="fj-filtros">' +
-        '<select id="fj-per" aria-label="Periodo"><option value="mes">🗓️ Mes actual</option><option value="hoy">📅 Hoy</option><option value="dia">📆 Día específico</option><option value="rango">↔ Rango de fechas</option></select>' +
-        '<input type="date" id="fj-fecha" aria-label="Día">' +
+        '<select id="fj-per" aria-label="Periodo"><option value="mes">🗓️ Mes</option><option value="hoy">📅 Hoy</option><option value="dia">📆 Día específico</option><option value="rango">↔ Rango de fechas</option></select>' +
+        '<div class="fj-nav" id="fj-nav"><button type="button" class="fj-ar" id="fj-prev" aria-label="Anterior">‹</button>' +
+          '<button type="button" class="fj-fecha" id="fj-lbl" title="Elegir fecha"><span class="t" id="fj-lbl-t">—</span><span class="s" id="fj-lbl-s"></span></button>' +
+          '<input type="date" id="fj-pick" tabindex="-1" aria-label="Elegir día"><input type="month" id="fj-pickm" tabindex="-1" aria-label="Elegir mes">' +
+          '<button type="button" class="fj-ar" id="fj-next" aria-label="Siguiente">›</button></div>' +
         '<span class="fj-rg" id="fj-rg"><input type="date" id="fj-desde" aria-label="Desde"><span class="sep">a</span><input type="date" id="fj-hasta" aria-label="Hasta"></span>' +
         '<select id="fj-doc" aria-label="Doctor"></select>' +
       '</div>' +
       '<div id="fj-cont" style="margin-top:14px"></div>';
     $('fj-doc').innerHTML = opt(DOCTORAS.map(d => ({ v: d.id, t: d.nombre })), 'Todos los doctores');
     $('fj-doc').onchange = () => { FJ.doc = $('fj-doc').value; cargarFlujo(); };
-    $('fj-per').onchange = () => { FJ.modo = $('fj-per').value; cargarFlujo(); };
-    $('fj-fecha').onchange = () => { const v = $('fj-fecha').value; if (!v) return; FJ.dia = v; cargarFlujo(); };
+    $('fj-per').onchange = () => { FJ.modo = $('fj-per').value; if (FJ.modo === 'mes') FJ.mes = todayLocal().slice(0, 7); cargarFlujo(); };
+    const mover = n => {
+      if (FJ.modo === 'mes') { const [y, m] = FJ.mes.split('-').map(Number); FJ.mes = isoLocal(new Date(y, m - 1 + n, 1)).slice(0, 7); }
+      else { FJ.dia = addDays(FJ.modo === 'hoy' ? todayLocal() : FJ.dia, n); FJ.modo = FJ.dia === todayLocal() ? 'hoy' : 'dia'; }
+      cargarFlujo();
+    };
+    $('fj-prev').onclick = () => mover(-1); $('fj-next').onclick = () => mover(1);
+    // Tocar la fecha abre el calendario (día o mes según el periodo)
+    $('fj-lbl').onclick = () => { const i = FJ.modo === 'mes' ? $('fj-pickm') : $('fj-pick'); try { i.showPicker(); } catch (e) { i.focus(); i.click(); } };
+    $('fj-pick').onchange = () => { const v = $('fj-pick').value; if (!v) return; FJ.dia = v; FJ.modo = v === todayLocal() ? 'hoy' : 'dia'; cargarFlujo(); };
+    $('fj-pickm').onchange = () => { const v = $('fj-pickm').value; if (!v) return; FJ.mes = v; cargarFlujo(); };
     const rg = () => { let a = $('fj-desde').value, b = $('fj-hasta').value; if (!a || !b) return; if (a > b) [a, b] = [b, a]; FJ.desde = a; FJ.hasta = b; cargarFlujo(); };
     $('fj-desde').onchange = rg; $('fj-hasta').onchange = rg;
   }
@@ -3230,11 +3256,21 @@ function renderFlujo() {
 }
 async function cargarFlujo() {
   if (!$('fj-cont')) return;
-  const seq = ++FJ.seq, [d, h] = fjRango();
+  const seq = ++FJ.seq, [d, h] = fjRango(), t = todayLocal();
   $('fj-per').value = FJ.modo;
-  $('fj-fecha').style.display = FJ.modo === 'dia' ? '' : 'none'; $('fj-fecha').value = FJ.dia;
+  $('fj-nav').style.display = FJ.modo === 'rango' ? 'none' : '';
   $('fj-rg').style.display = FJ.modo === 'rango' ? '' : 'none'; $('fj-desde').value = FJ.desde; $('fj-hasta').value = FJ.hasta;
-  $('sub-flujo').textContent = FJ.modo === 'mes' ? labelMes(d.slice(0, 7)) + ' · ' + fmtD(d) + ' – ' + fmtD(h) : d === h ? labelDia(d) : fmtD(d) + ' – ' + fmtD(h);
+  if (FJ.modo === 'mes') {
+    $('fj-lbl-t').textContent = labelMes(FJ.mes);
+    $('fj-lbl-s').textContent = 'del ' + fjDiaCorto(d) + ' al ' + fjDiaCorto(h) + (FJ.mes === t.slice(0, 7) ? ' · mes en curso' : '');
+    $('fj-next').disabled = FJ.mes >= t.slice(0, 7); $('fj-pickm').value = FJ.mes;
+  } else {
+    const dia = FJ.modo === 'hoy' ? t : FJ.dia;
+    $('fj-lbl-t').textContent = fjDiaLargo(dia);
+    $('fj-lbl-s').textContent = dia === t ? 'hoy' : dia === addDays(t, -1) ? 'ayer' : '';
+    $('fj-next').disabled = dia >= t; $('fj-pick').value = dia;
+  }
+  $('sub-flujo').textContent = '';
   $('fj-cont').innerHTML = '<div class="empty-note">Cargando…</div>';
   try {
     const [rows, gastos] = await Promise.all([cargarMovimientos(d, h), flujoGastos(d, h)]);
