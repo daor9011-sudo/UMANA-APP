@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="app-version" content="2026.11.04-5"/>
+<meta name="app-version" content="2026.11.04-6"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>UMANA Productividad</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2542,7 +2542,7 @@ const H = { per: null, sel: 'hoy', rows: [], q: '', doc: '', mot: '', med: '', t
 const PAGO_ICON = { Efectivo: '💵', Tarjeta: '💳', 'Tarjeta Crédito': '💳', 'Tarjeta Débito': '💳', Transferencia: '🏦', 'Cortesía': '🎁' };
 const iconoPago = m => m ? (PAGO_ICON[m] || '💰') + ' ' : '';
 function perDia(d) { return { tipo: 'dia', d, h: d, lbl: d === todayLocal() ? 'Hoy' : d === addDays(todayLocal(), -1) ? 'Ayer' : diaNombre(d) + ' ' + fmtD(d) }; }
-const RANGOS_HIST = [['hoy', '📅 Hoy'], ['dia', '📆 Día específico'], ['rango', '↔ Rango de fechas']];
+const RANGOS_HIST = [['hoy', '📅 Hoy'], ['mes_actual', '🗓️ Mes actual'], ['todo', '📚 Todo el histórico']];
 function personaPill(id, nombre) {
   if (!nombre) return '<span class="h-mut">—</span>';
   const i = DOCTORAS.findIndex(d => d.id === id);
