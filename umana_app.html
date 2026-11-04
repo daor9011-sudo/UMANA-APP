@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="app-version" content="2026.11.04-6"/>
+<meta name="app-version" content="2026.11.04-7"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>UMANA Productividad</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -3206,14 +3206,14 @@ function flujoHtml(fd, o) {
     sum + (vacio ? '<div class="fx-vacio">Sin movimientos en efectivo en este periodo.</div>' : o.uno ? unoDet : filas + gen) + '</div>';
 }
 /* ── Pestaña principal "💵 Flujo de caja" (no está dentro del Cierre) ── */
-const FJ = { modo: 'hoy', dia: null, desde: null, hasta: null, doc: '', seq: 0 };
-const fjRango = () => FJ.modo === 'hoy' ? [todayLocal(), todayLocal()] : FJ.modo === 'dia' ? [FJ.dia, FJ.dia] : [FJ.desde, FJ.hasta];
+const FJ = { modo: 'mes', dia: null, desde: null, hasta: null, doc: '', seq: 0 };
+const fjRango = () => FJ.modo === 'mes' ? [inicioMes(todayLocal()), todayLocal()] : FJ.modo === 'hoy' ? [todayLocal(), todayLocal()] : FJ.modo === 'dia' ? [FJ.dia, FJ.dia] : [FJ.desde, FJ.hasta];
 function renderFlujo() {
   if (!FJ.dia) { FJ.dia = todayLocal(); FJ.desde = inicioMes(FJ.dia); FJ.hasta = FJ.dia; }
   if (!$('fj-cont')) {
     $('body-flujo').innerHTML =
       '<div class="fj-filtros">' +
-        '<select id="fj-per" aria-label="Periodo"><option value="hoy">📅 Hoy</option><option value="dia">📆 Día específico</option><option value="rango">↔ Rango de fechas</option></select>' +
+        '<select id="fj-per" aria-label="Periodo"><option value="mes">🗓️ Mes actual</option><option value="hoy">📅 Hoy</option><option value="dia">📆 Día específico</option><option value="rango">↔ Rango de fechas</option></select>' +
         '<input type="date" id="fj-fecha" aria-label="Día">' +
         '<span class="fj-rg" id="fj-rg"><input type="date" id="fj-desde" aria-label="Desde"><span class="sep">a</span><input type="date" id="fj-hasta" aria-label="Hasta"></span>' +
         '<select id="fj-doc" aria-label="Doctor"></select>' +
@@ -3234,7 +3234,7 @@ async function cargarFlujo() {
   $('fj-per').value = FJ.modo;
   $('fj-fecha').style.display = FJ.modo === 'dia' ? '' : 'none'; $('fj-fecha').value = FJ.dia;
   $('fj-rg').style.display = FJ.modo === 'rango' ? '' : 'none'; $('fj-desde').value = FJ.desde; $('fj-hasta').value = FJ.hasta;
-  $('sub-flujo').textContent = d === h ? labelDia(d) : fmtD(d) + ' – ' + fmtD(h);
+  $('sub-flujo').textContent = FJ.modo === 'mes' ? labelMes(d.slice(0, 7)) + ' · ' + fmtD(d) + ' – ' + fmtD(h) : d === h ? labelDia(d) : fmtD(d) + ' – ' + fmtD(h);
   $('fj-cont').innerHTML = '<div class="empty-note">Cargando…</div>';
   try {
     const [rows, gastos] = await Promise.all([cargarMovimientos(d, h), flujoGastos(d, h)]);
