@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="app-version" content="2026.11.03-4"/>
+<meta name="app-version" content="2026.11.04-3"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>UMANA Productividad</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1456,6 +1456,7 @@ const TABS = [
   { id: 'registro',  ico: '📝', nombre: 'Registro', titulo: '📝 Registrar Consulta / Servicio',  fase: 3, ver: p => ['admin', 'doctor', 'recepcion'].includes(p.rol) },
   { id: 'historial', ico: '🗂️', nombre: 'Historial', titulo: '🗂️ Historial de consultas', fase: 3, ver: p => ['admin', 'doctor', 'recepcion'].includes(p.rol) },
   { id: 'cierre',    ico: '🧾', nombre: 'Cierre',    titulo: '🧾 Resultados Operativos',    fase: 4, ver: p => ['admin', 'doctor', 'recepcion'].includes(p.rol) },
+  { id: 'flujo',     ico: '💵', nombre: 'Flujo de caja', titulo: '💵 Flujo de caja por doctor', fase: 4, ver: p => ['admin', 'recepcion'].includes(p.rol) },
   { id: 'dashboard', ico: '📊', nombre: 'Dashboard', titulo: '📊 Dashboard', fase: 4, ver: p => ['admin', 'doctor'].includes(p.rol) },
   { id: 'prm',       ico: '💬', nombre: 'PRM / CRM', titulo: '💬 PRM — Pacientes', fase: 5, ver: p => ['admin', 'doctor'].includes(p.rol) },
   { id: 'gastos',    ico: '💸', nombre: 'Gastos',    titulo: '💸 Gastos',    fase: 6, ver: p => p.rol === 'admin' || permiso(p, 'puede_ver_gastos') }
@@ -1657,6 +1658,7 @@ const RENDER = {
   registro: () => renderRegistro(),
   historial: () => renderHistorial(),
   cierre: () => renderCierre(),
+  flujo: () => renderFlujo(),
   dashboard: () => renderDashboard(),
   prm: () => renderPRM(),
   gastos: () => renderGastos()
@@ -3121,6 +3123,135 @@ function renderCierre() {
 }
 const cRango = () => C.modo === 'dia' ? [C.dia, C.dia] : [C.mes + '-01', finMes(C.mes + '-01')];
 let C_ROWS = [], C_ROWS_ALL = [];
+/* ── Flujo de caja por doctor (opción 1: lista compacta) ──
+   Neto del doctor = efectivo cobrado (consulta + laboratorio + procedimientos + farmacia) − gastos en efectivo asociados a él.
+   Los gastos en efectivo "General de la clínica" (sin doctor) se restan del total de la caja. Se usa en Cierre y en el flash report. */
+const FLUJO_LINEAS = [['cons', 'Consulta', '#22a8a8'], ['serv', 'Laboratorio', '#2F6FD0'], ['proc', 'Proced. y cirugías', '#1B3A6B'], ['farm', 'Farmacia', '#7D3C98']];
+const FLUJO_CSS = `
+.fx-neg{color:#C2502E!important}.fx-pos{color:#1F8A5B!important}.fx-mut{color:#8794A8}
+.fx-pill{display:inline-block;border-radius:20px;padding:3px 11px;font-weight:700;font-size:12px;white-space:nowrap}
+.fx-pill.d1{background:#DCEBFB;color:#173F82}.fx-pill.d2{background:#D9F4F4;color:#0B6B6B}.fx-pill.gen{background:#FFF0E8;color:#9A3F1F}
+.fx-dots{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11.5px;color:#5B6B84}.fx-dots i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}
+.fx-chip{display:inline-flex;gap:5px;font-size:11px;background:#FFF3EE;color:#9A3F1F;border:1px dashed #F2C4AE;border-radius:8px;padding:2px 8px}
+.fx-bar{display:flex;height:8px;border-radius:5px;overflow:hidden;background:#F1F4F9}.fx-bar span{display:block;height:100%}.fx-bar .g{background:repeating-linear-gradient(135deg,#E8A48A 0 4px,#F3C6B4 4px 8px)}
+.fx-sum{display:flex;border:1px solid #E3E8F0;border-radius:12px;overflow:hidden;margin-bottom:12px}
+.fx-sum>div{flex:1;padding:10px 16px;min-width:0}.fx-sum>div+div{border-left:1px solid #E3E8F0}
+.fx-sum small{display:block;font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#8794A8}.fx-sum b{font-size:19px;font-family:'Bricolage Grotesque','Helvetica Neue',Arial,sans-serif}
+.fx-sum .fin{background:#E9F7F0}
+.fx-row{display:grid;grid-template-columns:200px minmax(0,1fr) 110px 110px 120px;gap:14px;align-items:center;padding:10px 14px;border:1px solid #E3E8F0;border-radius:10px;margin-bottom:6px;background:#fff}
+.fx-row .fx-k{font-size:10px;color:#8794A8;font-weight:700;text-transform:uppercase;letter-spacing:.4px}.fx-row .fx-v{font-weight:700;font-size:13.5px}
+.fx-row .net .fx-v{font-size:16px;color:#1F8A5B;font-family:'Bricolage Grotesque','Helvetica Neue',Arial,sans-serif}.fx-row.neg .net .fx-v{color:#C2502E}
+.fx-row>div:nth-child(n+3){text-align:right}
+.fx-row .det{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;border-top:1px dashed #E3E8F0;padding-top:8px;text-align:left!important}
+.fx-row.gen{background:#FFFBF8;border-style:dashed}
+.fx-aviso{font-size:11.5px;color:#7A4D00;background:#FDF1DC;border:1px solid #F0C36D;border-radius:10px;padding:8px 12px;margin-bottom:12px}
+.fx-uno{display:flex;flex-direction:column;gap:6px;padding:2px 2px 0}.fx-fl .fx-uno .fx-dots{font-size:9.5px}.fx-fl .fx-uno .fx-chip{font-size:9px}
+.fx-vacio{color:#8794A8;font-size:12.5px;padding:10px 2px}
+@media (max-width:640px){#fj-dia,#fj-mes,#fj-fecha,#fj-hoy{grid-column:span 2}#fj-label{grid-column:span 2;min-width:0;align-self:center}#fj-doc{grid-column:1 / -1;max-width:none!important;margin-left:0!important}}
+@media (max-width:700px){.fx-row{grid-template-columns:1fr 1fr}.fx-row>div:nth-child(2){grid-column:1/-1}.fx-row>div:nth-child(n+3){text-align:left}.fx-sum{flex-wrap:wrap}.fx-sum>div{min-width:50%}}
+/* en el flash report (hoja carta, mismo estilo que sus demás secciones) */
+.fx-fl .fx-sum{border-radius:10px;margin-bottom:8px}.fx-fl .fx-sum>div{padding:8px 12px}.fx-fl .fx-sum small{font-size:8px}.fx-fl .fx-sum b{font-size:15px}
+.fx-fl .fx-row{grid-template-columns:150px minmax(0,1fr) 78px 78px 86px;gap:10px;padding:7px 10px;border-radius:8px;margin-bottom:5px}
+.fx-fl .fx-row .fx-k{font-size:7.5px}.fx-fl .fx-row .fx-v{font-size:10.5px}.fx-fl .fx-row .net .fx-v{font-size:12.5px}
+.fx-fl .fx-pill{font-size:9.5px;padding:2px 8px}.fx-fl .fx-dots{font-size:8.5px;gap:3px 10px}.fx-fl .fx-chip{font-size:8.5px;padding:1px 6px}.fx-fl .fx-row .det{padding-top:5px;gap:4px 12px}.fx-fl .fx-bar{height:7px}
+`;
+/* Gastos en efectivo del periodo (la base decide quién puede verlos: admin, quien tiene permiso de gastos y recepción en horario) */
+async function flujoGastos(desde, hasta) {
+  try {
+    const r = await sb.rpc('cierre_gastos_info', { p_desde: desde, p_hasta: hasta });
+    if (r.error) throw r.error;
+    return r.data && r.data.permitido ? (r.data.salidas || []) : null;
+  } catch (e) { console.warn('[flujo de caja] sin gastos', e); return null; }
+}
+/* rows: movimientos (servicios + farmacia) · gastos: salidas en efectivo (null = sin permiso) · docId: solo un doctor */
+function flujoDatos(rows, gastos, docId) {
+  const docs = {}, gen = [];
+  const doc = id => docs[id] || (docs[id] = { id, nombre: nombreDoctora(id), lin: { cons: 0, serv: 0, proc: 0, farm: 0 }, cob: 0, gastos: [], g: 0 });
+  rows.filter(c => !c.no_vino && (!docId || c.doctor_id === docId)).forEach(c => {
+    const ef = pagosDe(c).filter(([m, x], i) => m === 'Efectivo' && (i === 0 || x > 0)).reduce((a, p) => a + num(p[1]), 0);
+    if (!(ef > 0)) return;
+    const d = doc(c.doctor_id), k = lineaDe(c);
+    d.lin[k] = num(d.lin[k] + ef); d.cob = num(d.cob + ef);
+  });
+  (gastos || []).forEach(g => {
+    const x = { desc: g.descripcion, cat: g.categoria, monto: num(g.monto), fecha: g.fecha };
+    if (g.doctor_id) { if (docId && g.doctor_id !== docId) return; const d = doc(g.doctor_id); d.gastos.push(x); d.g = num(d.g + x.monto); }
+    else if (!docId) gen.push(x);
+  });
+  const lista = Object.values(docs).map(d => Object.assign(d, { net: num(d.cob - d.g) })).sort((a, b) => b.cob - a.cob || a.nombre.localeCompare(b.nombre));
+  const tc = sumar(lista, d => d.cob), tgd = sumar(lista, d => d.g), tgg = sumar(gen, x => x.monto);
+  return { docs: lista, gen, tc, tg: num(tgd + tgg), tgg, tn: num(tc - tgd - tgg), sinGastos: gastos === null };
+}
+function flujoHtml(fd, o) {
+  o = o || {};
+  const m = o.flash ? fm0 : money;
+  const mx = Math.max(1, ...fd.docs.map(d => Math.max(d.cob, d.g)));
+  const tono = id => DOCTORAS.findIndex(d => d.id === id) % 2 ? 'd2' : 'd1';
+  const chips = gs => gs.map(x => '<span class="fx-chip">➖ ' + esc(x.desc) + ' · ' + m(x.monto) + '</span>').join('');
+  const bar = d => '<div class="fx-bar">' + FLUJO_LINEAS.filter(l => d.lin[l[0]] > 0).map(l => '<span style="width:' + (d.lin[l[0]] / mx * 100).toFixed(2) + '%;background:' + l[2] + '" title="' + l[1] + '"></span>').join('') +
+    (d.g > 0 ? '<span class="g" style="width:' + (d.g / mx * 100).toFixed(2) + '%" title="Gastos en efectivo"></span>' : '') + '</div>';
+  const dots = d => '<div class="fx-dots">' + FLUJO_LINEAS.filter(l => d.lin[l[0]] > 0).map(l => '<span><i style="background:' + l[2] + '"></i>' + l[1] + ' ' + m(d.lin[l[0]]) + '</span>').join('') + '</div>';
+  const celda = (k, v, cls) => '<div' + (cls ? ' class="' + cls + '"' : '') + '><div class="fx-k">' + k + '</div><div class="fx-v">' + v + '</div></div>';
+  const filas = fd.docs.map(d => '<div class="fx-row' + (d.net < 0 ? ' neg' : '') + '" data-doc="' + esc(d.id) + '"><div><span class="fx-pill ' + tono(d.id) + '">' + esc(corto(d.nombre)) + '</span></div><div>' + bar(d) + '</div>' +
+    celda('Cobrado', m(d.cob)) + celda('Gastos', d.g ? '<span class="fx-neg">−' + m(d.g) + '</span>' : (fd.sinGastos ? '<span class="fx-mut">n/d</span>' : '—')) + celda('Neto', m(d.net), 'net') +
+    '<div class="det">' + dots(d) + chips(d.gastos) + '</div></div>').join('');
+  const gen = fd.gen.length ? '<div class="fx-row gen"><div><span class="fx-pill gen">🏥 General de la clínica</span></div><div>' + chips(fd.gen) + '</div><div></div>' +
+    celda('Gastos', '<span class="fx-neg">−' + m(fd.tgg) + '</span>') + celda('Sale de caja', '<span class="fx-neg">−' + m(fd.tgg) + '</span>', 'net') + '</div>' : '';
+  const sum = '<div class="fx-sum"><div><small>💵 Cobrado en efectivo</small><b>' + m(fd.tc) + '</b></div><div><small>➖ Gastos en efectivo</small><b class="fx-neg">' + (fd.tg ? '−' + m(fd.tg) : m(0)) + '</b></div>' +
+    '<div class="fin"><small>🏦 ' + (o.uno ? 'Neto que entrega' : 'Debe haber en caja') + '</small><b class="fx-pos">' + m(fd.tn) + '</b></div></div>';
+  const vacio = !fd.docs.length && !fd.gen.length;
+  // Hoja de un doctor en el flash: la franja y debajo de qué vino su efectivo y qué gastos se le restaron
+  const unoDet = o.uno && fd.docs[0] ? '<div class="fx-uno">' + dots(fd.docs[0]) + (fd.docs[0].gastos.length ? '<div style="display:flex;flex-wrap:wrap;gap:4px">' + chips(fd.docs[0].gastos) + '</div>' : '<span class="fx-mut">Sin gastos en efectivo</span>') + '</div>' : '';
+  return '<div class="fx-wrap' + (o.flash ? ' fx-fl' : '') + '">' + (fd.sinGastos && !o.flash ? '<div class="fx-aviso">Tu usuario no ve los gastos: aquí solo aparece el efectivo cobrado.</div>' : '') +
+    sum + (vacio ? '<div class="fx-vacio">Sin movimientos en efectivo en este periodo.</div>' : o.uno ? unoDet : filas + gen) + '</div>';
+}
+/* ── Pestaña principal "💵 Flujo de caja" (no está dentro del Cierre) ── */
+const FJ = { modo: 'dia', dia: null, mes: null, doc: '', seq: 0 };
+const fjRango = () => FJ.modo === 'dia' ? [FJ.dia, FJ.dia] : [FJ.mes + '-01', finMes(FJ.mes + '-01')];
+function renderFlujo() {
+  if (!FJ.dia) { FJ.dia = todayLocal(); FJ.mes = FJ.dia.slice(0, 7); }
+  if (!$('fj-cont')) {
+    $('body-flujo').innerHTML =
+      '<div class="periodo-bar">' +
+        '<button class="sbtn act" id="fj-dia" type="button">📋 Día</button>' +
+        '<button class="sbtn" id="fj-mes" type="button">📅 Mes</button>' +
+        '<button class="sbtn btn-outline" id="fj-prev" type="button" aria-label="Anterior">‹</button>' +
+        '<span class="date-label" id="fj-label">—</span>' +
+        '<button class="sbtn btn-outline" id="fj-next" type="button" aria-label="Siguiente">›</button>' +
+        '<input type="date" id="fj-fecha" aria-label="Fecha">' +
+        '<button class="sbtn btn-outline" id="fj-hoy" type="button">↻ Hoy</button>' +
+        '<select id="fj-doc" style="max-width:240px;margin-left:auto" aria-label="Doctor"></select>' +
+      '</div>' +
+      '<div id="fj-cont" style="margin-top:14px"></div>';
+    $('fj-doc').innerHTML = opt(DOCTORAS.map(d => ({ v: d.id, t: d.nombre })), 'Todos los doctores');
+    $('fj-doc').onchange = () => { FJ.doc = $('fj-doc').value; cargarFlujo(); };
+    $('fj-dia').onclick = () => { FJ.modo = 'dia'; cargarFlujo(); };
+    $('fj-mes').onclick = () => { FJ.modo = 'mes'; FJ.mes = FJ.dia.slice(0, 7); cargarFlujo(); };
+    const mover = n => { if (FJ.modo === 'dia') FJ.dia = addDays(FJ.dia, n); else { const [y, m] = FJ.mes.split('-').map(Number); FJ.mes = isoLocal(new Date(y, m - 1 + n, 1)).slice(0, 7); } cargarFlujo(); };
+    $('fj-prev').onclick = () => mover(-1); $('fj-next').onclick = () => mover(1);
+    $('fj-hoy').onclick = () => { FJ.dia = todayLocal(); FJ.mes = FJ.dia.slice(0, 7); cargarFlujo(); };
+    $('fj-fecha').onchange = () => { const v = $('fj-fecha').value; if (!v) return; FJ.dia = v; FJ.mes = v.slice(0, 7); cargarFlujo(); };
+  }
+  return cargarFlujo();
+}
+async function cargarFlujo() {
+  if (!$('fj-cont')) return;
+  const seq = ++FJ.seq, [d, h] = fjRango();
+  $('fj-dia').classList.toggle('act', FJ.modo === 'dia'); $('fj-mes').classList.toggle('act', FJ.modo === 'mes');
+  $('fj-label').textContent = FJ.modo === 'dia' ? labelDia(FJ.dia) : labelMes(FJ.mes);
+  $('fj-fecha').value = FJ.dia;
+  $('sub-flujo').textContent = FJ.modo === 'dia' ? fmtD(FJ.dia) : labelMes(FJ.mes);
+  $('fj-cont').innerHTML = '<div class="empty-note">Cargando…</div>';
+  try {
+    const [rows, gastos] = await Promise.all([cargarMovimientos(d, h), flujoGastos(d, h)]);
+    if (seq !== FJ.seq) return;
+    $('fj-cont').innerHTML = flujoHtml(flujoDatos(rows, gastos, FJ.doc));
+  } catch (e) {
+    console.error('[flujo de caja]', e); if (seq !== FJ.seq) return;
+    $('fj-cont').innerHTML = '<div class="empty-note">No se pudo cargar el flujo de caja. ' + esc(traducirError(e)) + '</div>';
+  }
+}
+document.head.insertAdjacentHTML('beforeend', '<style>' + FLUJO_CSS + '</style>');
 async function cargarCierre() {
   if (!$('cierre-kpis')) return;
   const seq = ++C.seq, [d, h] = cRango();
@@ -3130,11 +3261,14 @@ async function cargarCierre() {
   $('cierre-por-doctor').innerHTML = '<div class="empty-note">Cargando…</div>';
   // Bloques independientes: si el efectivo falla, el resto del cierre se muestra igual.
   const pCons = cargarMovimientos(d, h).then(r => ({ ok: true, r }), e => ({ ok: false, e }));
+  C.gastos = undefined; const pGas = flujoGastos(d, h);
   const rc = await pCons;
   if (seq !== C.seq) return;
   if (!rc.ok) { console.error(rc.e); C_ROWS = []; C_ROWS_ALL = []; ['cierre-por-doctor', 'cierre-por-pago', 'cierre-por-farm'].forEach(id => $(id).innerHTML = '<div class="empty-note">No se pudieron cargar las consultas. ' + esc(traducirError(rc.e)) + '</div>'); }
   else { C_ROWS_ALL = rc.r; C_ROWS = (C.doc ? rc.r.filter(c => c.doctor_id === C.doc) : rc.r); }
   pintarCierre(rc.ok);
+  const gs = await pGas; if (seq !== C.seq) return;
+  C.gastos = gs;   // para el flujo de caja del flash report
 }
 function pintarCierre(consOk) {
   if (consOk === undefined) consOk = true;
@@ -3678,6 +3812,9 @@ const FLASH_CSS_LINEAS = `
 .stk{display:flex;height:15px;border-radius:6px;overflow:hidden;margin-top:9px}
 .ln4 .lnp{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700}.ln4 .lnp::before{content:'';width:10px;height:10px;border-radius:3px;background:var(--c)}
 .ln4.vac{opacity:.5}.ln4 .pv small .dl{font-size:8px}
+.mr.fxr{grid-template-columns:110px 1fr 62px 28px}.mr.fxr .mn{font-weight:600}.fx-c{font-size:9px;color:#8794A8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fx-sep{border-top:1px dashed #E3E8F0;margin:4px 0 2px}.fx-g{color:#B2402A}.fx-n{color:#14764f}
+.al.cuatro{grid-template-columns:repeat(4,1fr)}.al.cuatro .a{padding:9px 10px}
 .stk span{display:flex;align-items:center;justify-content:center;color:#fff;font-size:8.5px;font-weight:800}
 `;
 /* Líneas de ingreso del flash report: Consulta · Laboratorios · Procedimientos y cirugías · Farmacia y suplementos */
@@ -3746,7 +3883,7 @@ async function flashReunirDatos(docId) {
     anexo.sort((a, b) => b.total - a.total);
   }
   return { esDia, desde, hasta, total, serv, farm, nFarm, nServ: asist.length - nFarm, n: asist.length - nFarm, porCat,
-    noVino: rows.length - asist.length, factPend: asist.filter(c => c.factura && !c.num_factura).length, pros, medios, mix, det, efTr, comp, anexo, lin, nPac: pacs.size,
+    noVino: rows.length - asist.length, factPend: asist.filter(c => c.factura && !c.num_factura).length, pros, medios, mix, det, efTr, comp, anexo, lin, nPac: pacs.size, fx: flujoDatos(C_ROWS_ALL, C.gastos === undefined ? null : C.gastos, docId),
     doc: docId ? nombreDoctora(docId) : (ES_DOCTORA() ? PERFIL.nombre : '') };
 }
 function flashFechaTxt(d) {
@@ -3771,7 +3908,12 @@ function flashReportHtml(d, totalPaginas, paginasExtra) {
       '<td><span class="mb2"><i style="width:' + (x.monto / mxL * 100).toFixed(1) + '%;background:' + l.col + '"></i></span></td><td><b>' + fm0(x.monto) + '</b></td><td>' + (d.total ? Math.round(x.monto / d.total * 100) : 0) + '%</td><td>' + varPct(x.monto, d.comp && d.comp.lin && d.comp.lin[l.k]) + '</td></tr>'; }).join('');
   const stk = d.total > 0 ? '<div class="stk">' + FLASH_LINEAS.filter(l => d.lin[l.k].monto > 0).map(l => { const p = d.lin[l.k].monto / d.total * 100; return '<span style="width:' + p.toFixed(2) + '%;background:' + l.col + '">' + (p >= 6 ? Math.round(p) + '%' : '') + '</span>'; }).join('') + '</div>' : '';
   const ml = Object.entries(d.medios).map(([n, v]) => ({ n, serv: v.serv, farm: v.farm, t: num(v.serv + v.farm) })).sort((a, b) => b.t - a.t), mxM = Math.max(1, ...ml.map(x => x.t));
-  const mrow = ml.map(x => '<div class="mr"><span class="mn">' + (PAGO_ICON[x.n] || '💰') + ' ' + esc(x.n) + '</span><div class="mb"><div class="bar" style="width:' + (x.t / mxM * 100).toFixed(1) + '%"><span class="spart" style="width:' + (x.t ? (x.serv / x.t * 100).toFixed(1) : 0) + '%"></span><span class="fpart" style="width:' + (x.t ? (x.farm / x.t * 100).toFixed(1) : 0) + '%"></span></div></div><b>' + fm0(x.t) + '</b><span class="mp">' + (d.total ? Math.round(x.t / d.total * 100) : 0) + '%</span></div>').join('');
+  // Flujo de caja: efectivo cobrado − gastos en efectivo = efectivo por entregar (debajo de la fila 💵 Efectivo)
+  const gfx = d.fx.sinGastos ? [] : d.fx.docs.flatMap(x => x.gastos).concat(d.doc ? [] : d.fx.gen);
+  const filasFlujo = gfx.length ? (gfx.length <= 3 ? gfx.map(g => '<div class="mr fxr"><span class="mn fx-g">− Gastos en efectivo</span><span class="fx-c">' + esc(g.desc) + '</span><b class="fx-g">−' + fm0(g.monto) + '</b><span class="mp"></span></div>').join('')
+      : '<div class="mr fxr"><span class="mn fx-g">− Gastos en efectivo</span><span class="fx-c">' + gfx.length + ' gastos</span><b class="fx-g">−' + fm0(d.fx.tg) + '</b><span class="mp"></span></div>') +
+    '<div class="fx-sep"></div><div class="mr fxr"><span class="mn fx-n">= Efectivo por entregar</span><span></span><b class="fx-n">' + fm0(d.fx.tn) + '</b><span class="mp"></span></div>' : '';
+  const mrow = ml.map(x => '<div class="mr"><span class="mn">' + (PAGO_ICON[x.n] || '💰') + ' ' + esc(x.n) + '</span><div class="mb"><div class="bar" style="width:' + (x.t / mxM * 100).toFixed(1) + '%"><span class="spart" style="width:' + (x.t ? (x.serv / x.t * 100).toFixed(1) : 0) + '%"></span><span class="fpart" style="width:' + (x.t ? (x.farm / x.t * 100).toFixed(1) : 0) + '%"></span></div></div><b>' + fm0(x.t) + '</b><span class="mp">' + (d.total ? Math.round(x.t / d.total * 100) : 0) + '%</span></div>' + (x.n === 'Efectivo' ? filasFlujo : '')).join('') + (ml.some(x => x.n === 'Efectivo') ? '' : filasFlujo);
   const mixL = Object.entries(d.mix).sort((a, b) => b[1].monto - a[1].monto).slice(0, 6), mxX = Math.max(1, ...mixL.map(x => x[1].monto));
   const xrow = mixL.map(([n, v]) => '<div class="xr"><span class="xn">' + esc(n) + '</span><span class="xk">×' + v.n + '</span><div class="xb"><div class="bar t" style="width:' + (v.monto / mxX * 100).toFixed(1) + '%"></div></div><b>' + fm0(v.monto) + '</b></div>').join('');
   const detL = Object.entries(d.det).sort((a, b) => b[1].monto - a[1].monto).slice(0, 3), mxD = Math.max(1, ...detL.map(x => x[1].monto));
@@ -3801,17 +3943,18 @@ function flashReportHtml(d, totalPaginas, paginasExtra) {
     '</div>' +
     '<h2 class="d">Ingreso por línea <small>' + esc(d.doc) + '</small></h2>' + lrowDoc + stk;
   const quien = PERFIL ? 'por ' + esc(PERFIL.nombre) : '';
-  return '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Flash report</title>' + FLASH_FONTS + '<style>' + FLASH_CSS + FLASH_CSS_LINEAS + '</style></head><body>' +
+  return '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Flash report</title>' + FLASH_FONTS + '<style>' + FLASH_CSS + FLASH_CSS_LINEAS + FLUJO_CSS + '</style></head><body>' +
     '<div class="page" id="flash-p1"><div class="hd"><div><div class="br">UMANA Ginecología · Flash report</div><h1 class="d">' + (d.esDia ? 'Cierre del día' : 'Cierre del mes') + ' · <b>Productividad</b></h1></div>' +
     '<div class="dt"><strong class="d">' + esc(flashFechaTxt(d)) + '</strong>' + (d.doc ? esc(d.doc) + '<br>' : '') + 'Generado el ' + esc(ahora) + '<br>' + quien + '</div></div>' +
     '<div class="wrap">' + (d.doc ? bloqueDoc : bloqueGen) +
     '<div class="two"><div><h2 class="d">Cobrado por medio de pago</h2>' + (mrow || '<div style="color:var(--g4)">Sin cobros.</div>') + '</div>' +
     '<div><h2 class="d">Qué se vendió</h2><div class="sub" style="margin-top:0">Servicios · top ' + mixL.length + '</div>' + (xrow || '<div style="color:var(--g4)">—</div>') +
       (detL.length ? '<div class="sub">Farmacia · top ' + detL.length + '</div>' + drow : '') + '</div></div>' +
-    '<h2 class="d">Pendientes para cerrar bien</h2><div class="al">' +
+    '<h2 class="d">Pendientes para cerrar bien</h2><div class="al cuatro">' +
       '<div class="a ' + (d.factPend > 0 ? 'w' : 'o') + '"><b>' + d.factPend + '</b><span>facturas solicitadas<br>sin N° de factura</span></div>' +
       '<div class="a ' + (d.noVino > 0 ? 'w' : 'o') + '"><b>' + d.noVino + '</b><span>pacientes que<br>no vinieron</span></div>' +
-      '<div class="a i"><b>' + fm0(d.efTr) + '</b><span>en efectivo y transferencia<br>para conciliar en caja</span></div>' +
+      '<div class="a i"><b>' + fm0(d.fx.sinGastos ? d.fx.tc : d.fx.tn) + '</b><span>en efectivo<br>por entregar</span></div>' +
+      '<div class="a i"><b>' + fm0(d.medios.Transferencia ? num(d.medios.Transferencia.serv + d.medios.Transferencia.farm) : 0) + '</b><span>en transferencia<br>para conciliar</span></div>' +
     '</div></div>' +
     '<div class="ft"><span>UMANA Ginecología · Productividad · Cifras al momento de generar el reporte · Confidencial</span><span>Página 1 de ' + (totalPaginas || 1) + '</span></div></div>' +
     (paginasExtra || '') + '</body></html>';
