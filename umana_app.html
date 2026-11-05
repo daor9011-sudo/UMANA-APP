@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="app-version" content="2026.11.04-11"/>
+<meta name="app-version" content="2026.11.05-1"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>UMANA Productividad</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -3894,6 +3894,26 @@ h2 small{font-family:'Instrument Sans',Arial,sans-serif;font-weight:600;color:va
 .pay{font-size:8.5px;font-weight:600;background:var(--g1);border-radius:6px;padding:1px 6px;white-space:nowrap}
 .rw .mo{text-align:right;font-family:'Bricolage Grotesque','Helvetica Neue',Arial,sans-serif;font-size:11px;font-weight:800}
 .tot{display:flex;justify-content:space-between;align-items:center;background:var(--navy);color:#fff;border-radius:10px;padding:10px 16px;margin-top:2px;font-size:10px}.tot b{font-size:17px;font-family:'Bricolage Grotesque','Helvetica Neue',Arial,sans-serif}
+/* ── Letra más grande en el flash report (≈ +25–30%) ── */
+html body{font-size:13px}
+html body .hd .br{font-size:11.5px}html body .hd .dt{font-size:12.5px}html body .hd .dt strong{font-size:17px}
+html body .k .l{font-size:10.5px}html body .k .v{font-size:25px}html body .k.main .v{font-size:35px}html body .k .s{font-size:12px;line-height:1.35}
+html body h2{font-size:15px}html body h2 small{font-size:11.5px}
+html body .np{font-size:12.5px}html body .pn small{font-size:11px}html body .pv b{font-size:15px}html body .pv small{font-size:10.5px}html body .pp{font-size:13px}
+html body .mr{grid-template-columns:140px 1fr 76px 34px;padding:5px 0}html body .mn{font-size:12.5px}html body .mr b{font-size:13.5px}html body .mp{font-size:11.5px}
+html body .mr.fxr{grid-template-columns:140px 1fr 76px 34px}html body .fx-c{font-size:11px}
+html body .xr{grid-template-columns:1fr 32px 74px 60px;padding:4.5px 0}html body .xn{font-size:12.5px}html body .xk{font-size:11px}html body .xr b{font-size:13.5px}
+html body .sub{font-size:11px}
+html body .a{font-size:12px}html body .a b{font-size:20px}
+html body .ft{font-size:10.5px}
+html body .tb{font-size:12.5px}html body .tb th{font-size:10px}html body .tb td{padding:6px 6px}html body .tb td b{font-size:13.5px}html body .tb td small{font-size:10.5px}html body .dl{font-size:10.5px}
+html body .stk{height:18px}html body .stk span{font-size:10.5px}
+html body .ln4 .lnp{font-size:13.5px}
+html body .bs{font-size:11.5px}html body .btt{font-size:15.5px}
+html body .cols{font-size:10px}html body .rw .n{font-size:10.5px}html body .rw .pc{font-size:12px}html body .svc{font-size:10.5px}html body .fm{font-size:10.5px}
+html body .pay{font-size:10.5px}html body .rw .mo{font-size:13px}html body .mut{font-size:11px}html body .fac{font-size:10px}
+html body .tot{font-size:12px}html body .tot b{font-size:20px}
+html body .al.cuatro .a{padding:9px 10px;gap:8px}html body .al.cuatro .a b{font-size:17px}html body .al.cuatro .a span{font-size:11px;white-space:nowrap}
 `;
 const fm0 = n => (n < 0 ? '-' : '') + '$' + Math.round(Math.abs(n)).toLocaleString('es-MX');
 const capF = s => s.charAt(0).toUpperCase() + s.slice(1);
