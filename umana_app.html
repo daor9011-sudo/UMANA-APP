@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="app-version" content="2026.11.10-5"/>
+<meta name="app-version" content="2026.11.10-6"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>UMANA Productividad</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -3524,63 +3524,63 @@ document.head.insertAdjacentHTML('beforeend', '<style>' + `
 
 /* ── Flash report de comisiones: una hoja (o más) por doctor con su estado de cuenta del mes ── */
 const COM_COL = { consP: '#22a8a8', consO: '#7FCFCF', proc: '#1B3A6B', labf: '#2F6FD0', ayud: '#7D3C98' };
+/* Formato "Recibo" (opción 2): encabezado azul marino como el resto de flash reports, recuadro del total neutro,
+   comisión por concepto con ícono y barra, y detalle por paciente en dos columnas. Una hoja por doctor (más si no cabe). */
 const CMF_CSS = `
-.cmf-c{display:grid;grid-template-columns:300px 1fr 110px 50px 100px;gap:12px;align-items:center;padding:5px 0;border-bottom:1px dashed var(--g2)}
-.cmf-c .lnp{font-size:12.5px;white-space:nowrap}.cmf-c .pn small{font-size:9.5px;margin-top:1px}.cmf-c .pb{height:11px}.cmf-c .pc{text-align:right;font-weight:800;color:var(--g6);font-size:12px}
-.cmf-c .pv b{font-size:14px}.cmf-c .cm{text-align:right;font-weight:800;font-size:14px;color:var(--green)}
-.cmf-c.vac{opacity:.45}.cmf-c.hd2{padding:0 0 4px;border-bottom:1px solid var(--g2);font-size:9px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--g4)}
-.cmf-c.hd2 span{text-align:right}.cmf-c.hd2 span:first-child{text-align:left}
-.cmf-t{display:grid;grid-template-columns:1fr auto;gap:2px 16px;margin-top:10px;padding:9px 16px;border-radius:12px;background:var(--g1);font-size:12.5px}
-.cmf-t b{text-align:right}.cmf-t i{grid-column:1/-1;border-top:2px solid var(--navy);margin:4px 0 2px}.cmf-t .tt{font-family:'Bricolage Grotesque',sans-serif;font-size:18px;font-weight:800}
-.cmf-r{display:grid;grid-template-columns:84px minmax(0,1.25fr) minmax(0,1.5fr) 116px 76px 72px;gap:10px;align-items:center;padding:5px 8px;font-size:10.5px;border-bottom:1px solid var(--g2)}
-.cmf-r>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cmf-r.alt{background:#FAFBFD}
-.cmf-r .n{font-weight:700}.cmf-r .q{color:var(--g6)}.cmf-r .m,.cmf-r .c{text-align:right;font-weight:700}.cmf-r .c{color:var(--green)}
-.cmf-r.h{background:var(--navy);color:#fff;font-size:9px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;border-radius:6px 6px 0 0;border:0}
-.cmf-r .rg{font-style:normal;display:inline-block;border-radius:20px;padding:2px 8px;font-size:9.5px;font-weight:800;color:#fff}
-.cmf-tot{display:flex;justify-content:space-between;padding:9px 8px;background:var(--g1);font-weight:800;font-size:12px;border-radius:0 0 6px 6px}
-.cmf-nota{font-size:9.5px;color:var(--g4);margin-top:7px;line-height:1.45}
-.cmf .hd h1{font-size:23px;white-space:nowrap}.cmf .hd .dt{white-space:nowrap}.cmf .hero .k .s{font-size:10px}.cmf h2.d{margin-top:14px}`;
+.rx-h{color:#fff;padding:22px 36px 18px;display:flex;justify-content:space-between;align-items:center;border-bottom:4px solid #2ABFBF;background:linear-gradient(135deg,#0B1628,#173363)}.rx-hl{display:flex;gap:14px;align-items:center}
+.rx-av{width:52px;height:52px;border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:#fff}
+.rx-br{font-size:9.5px;letter-spacing:1.8px;text-transform:uppercase;opacity:.8;font-weight:700}.rx-h h1{font-size:25px;font-weight:800;margin:3px 0 2px;white-space:nowrap}.rx-h h1 small{font-size:14px;opacity:.75}.rx-hs{font-size:11.5px;opacity:.85}
+.rx-hr{text-align:right;font-size:10.5px;line-height:1.5;opacity:.92;white-space:nowrap}.rx-hr strong{display:block;font-size:16px}
+.rx-hero{display:grid;grid-template-columns:1.1fr 1fr;gap:18px;align-items:center;border:1px solid #BFE6E6;border-radius:16px;padding:14px 18px;background:linear-gradient(120deg,#EAF7F7,#fff 70%)}
+.rx-hero small{font-size:9.5px;letter-spacing:.8px;text-transform:uppercase;color:#8794A8;font-weight:700}.rx-hero>div>b{display:block;font-size:40px;font-weight:800;line-height:1.05;color:#0B1628}
+.rx-stk{display:flex;height:10px;border-radius:6px;overflow:hidden;margin-top:8px;background:#EEF2F7}.rx-stk i{display:block;height:100%}
+.rx-mini{display:grid;grid-template-columns:1fr 1fr;gap:8px}.rx-mini div{background:#fff;border:1px solid #E3E8F0;border-radius:10px;padding:7px 10px}.rx-mini b{display:block;font-size:15px}
+.rx-t2{font-family:'Bricolage Grotesque',sans-serif;font-size:15px;font-weight:800;margin:16px 0 8px;display:flex;align-items:center;gap:10px}.rx-t2:after{content:'';flex:1;height:1px;background:#E3E8F0}.rx-t2 small{font-family:'Instrument Sans',sans-serif;font-size:10.5px;color:#8794A8;font-weight:600}
+.rx-c{display:grid;grid-template-columns:34px 230px 1fr 90px;gap:12px;align-items:center;padding:6px 0;border-bottom:1px dashed #E3E8F0}.rx-c.rx-na{opacity:.4}.rx-ic{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.rx-tx b{display:block;font-size:12px}.rx-tx small{font-size:10px;color:#8794A8}.rx-bar{height:12px;background:#EEF2F7;border-radius:6px;overflow:hidden}.rx-bar i{display:block;height:100%;border-radius:6px}.rx-vv{text-align:right;color:#14764f;font-size:14px}
+.rx-tot{display:flex;align-items:center;gap:12px;margin-top:14px;padding:12px 16px;border-radius:14px;background:#F4F7FB;border:1px solid #E3E8F0}.rx-tot>div{flex:1}.rx-tot span{display:block;font-size:9.5px;letter-spacing:.6px;text-transform:uppercase;color:#8794A8;font-weight:700}.rx-tot b{font-size:16px}
+.rx-tot .rx-op{flex:0;font-size:20px;font-weight:800;color:#8794A8}.rx-tot .rx-fin{flex:1.4;background:#0B1628;color:#fff;border-radius:10px;padding:8px 12px;text-align:right}.rx-tot .rx-fin span{color:rgba(255,255,255,.7)}.rx-tot .rx-fin b{font-size:22px;color:#2ABFBF}
+.rx-g{columns:2;column-gap:12px}.rx-p{break-inside:avoid;border:1px solid #E3E8F0;border-radius:10px;padding:6px 10px;margin-bottom:6px}.rx-ph{display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:2px}.rx-ph em{font-style:normal;font-weight:800;color:#14764f}
+.rx-ln{display:grid;grid-template-columns:8px minmax(0,1fr) auto 54px;gap:6px;align-items:center;font-size:9.5px;min-height:18px}.rx-ln i{width:8px;height:8px;border-radius:2px}.rx-ln span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#5B6B84}.rx-ln small{color:#8794A8;font-size:9px}.rx-ln b{text-align:right;color:#14764f}
+.rx-nota{font-size:9px;color:#8794A8;margin-top:8px;line-height:1.45}`;
 function flashComisionesHtml(lista, mes) {
+  const hex = (h, a) => { const n = parseInt(h.slice(1), 16); return 'rgba(' + (n >> 16) + ',' + (n >> 8 & 255) + ',' + (n & 255) + ',' + a + ')'; };
   const ahora = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).replace(',', ' ·');
-  const [d, h] = cmRango(), mesTxt = labelMes(mes), quien = PERFIL ? 'por ' + esc(PERFIL.nombre) : '';
-  const fila = (x, i) => '<div class="cmf-r' + (i % 2 ? ' alt' : '') + '"><span>' + esc(fjDiaCorto(x.c.fecha)) + '</span><span class="n">' + esc(x.c.paciente ? x.c.paciente.nombre : 'Sin paciente') + '</span>' +
-    '<span class="q">' + (x.c._farm ? '💊 ' + esc(x.c.descripcion) : esc(servicioTxt(x.c))) + (x.c.doctor_id !== lista.__id ? ' · ' + esc(corto(nombreDoctora(x.c.doctor_id))) : '') + '</span>' +
-    '<span><i class="rg" style="background:' + COM_COL[x.con] + '">' + esc(COM_CORTO[x.con]) + ' ' + x.pct + '%</i></span><span class="m">' + fm0(x.monto) + '</span><span class="c">' + fm0(x.com) + '</span></div>';
-  const cab = '<div class="cmf-r h"><span>Fecha</span><span>Paciente</span><span>Concepto</span><span>Regla</span><span style="text-align:right">Cobrado</span><span style="text-align:right">Comisión</span></div>';
+  const [d, h] = cmRango(), mesCorto = labelMes(mes).split(' ')[0].toLowerCase();
+  const pac = x => x.c.paciente ? x.c.paciente.nombre : 'Sin paciente (mostrador)';
+  const conc = x => x.c._farm ? '💊 ' + x.c.descripcion : servicioTxt(x.c);
+  const usados = COM_CON.filter(([k]) => lista.some(o => o.pct[k] != null));
+  const hd = (o, cont) => { const [c1, c2] = comColores(o.id);
+    return '<div class="rx-h"><div class="rx-hl"><div class="rx-av" style="background:' + c1 + ';border-color:' + c2 + '">' + esc(comIni(o.nombre)) + '</div><div><div class="rx-br">UMANA Ginecología · Flash report de comisiones</div>' +
+      '<h1 class="d">' + esc(o.nombre) + (cont ? ' <small>· continuación</small>' : '') + '</h1><div class="rx-hs">' + (o.salario > 0 ? 'Salario fijo ' + fm0(o.salario) + ' + comisiones' : 'Sin salario fijo · solo comisiones') + '</div></div></div>' +
+      '<div class="rx-hr"><strong class="d">' + esc(labelMes(mes)) + '</strong>del ' + esc(fjDiaCorto(d)) + ' al ' + esc(fjDiaCorto(h)) + '<br>Generado el ' + esc(ahora) + '<br>' + (PERFIL ? 'por ' + esc(PERFIL.nombre) : '') + '</div></div>'; };
   const hojas = [];
   lista.forEach(o => {
-    lista.__id = o.id;
-    const movs = o.mov.slice().sort((a, b) => a.c.fecha.localeCompare(b.c.fecha) || (a.c.created_at || '').localeCompare(b.c.created_at || ''));
-    const filas = movs.map(fila), P1 = 15 - comConceptos(o).length, PN = 29, trozos = [filas.slice(0, P1)];
-    for (let i = P1; i < filas.length; i += PN) trozos.push(filas.slice(i, i + PN));
-    const mx = Math.max(1, ...comConceptos(o).map(([k]) => o.con[k].b));
-    const conceptos = '<div class="cmf-c hd2"><span>Concepto</span><span></span><span>Base cobrada</span><span>%</span><span>Comisión</span></div>' +
-      comConceptos(o).map(([k, l]) => { const x = o.con[k], n = o.mov.filter(m => m.con === k).length;
-        return '<div class="cmf-c' + (x.b ? '' : ' vac') + '"><div class="pn"><span class="lnp" style="--c:' + COM_COL[k] + '">' + l + '</span><small>' + n + ' movimiento' + (n === 1 ? '' : 's') + '</small></div>' +
-          '<div class="pb"><div class="bar" style="width:' + Math.max(x.b / mx * 100, x.b > 0 ? 3 : 0).toFixed(1) + '%;background:' + COM_COL[k] + '"></div></div>' +
-          '<div class="pv"><b>' + fm0(x.b) + '</b></div><div class="pc">' + o.pct[k] + '%</div><div class="cm">' + fm0(x.c) + '</div></div>'; }).join('');
-    const total = '<div class="cmf-t"><span>Salario fijo</span><b>' + (o.salario > 0 ? fm0(o.salario) : 'No tiene') + '</b><span>+ Comisiones del mes</span><b>' + fm0(o.com) + '</b>' +
-      '<i></i><span class="tt">= Total a pagar</span><b class="tt">' + fm0(o.tot) + '</b></div>';
-    const n = trozos.length;
-    trozos.forEach((tz, i) => {
-      const ult = i === n - 1;
-      hojas.push('<div class="page cmf"><div class="hd' + (i ? ' s' : '') + '"><div><div class="br">UMANA Ginecología · Flash report</div><h1 class="d">Comisiones · <b>' + esc(o.nombre) + '</b></h1></div>' +
-        '<div class="dt"><strong class="d">' + esc(mesTxt) + '</strong>del ' + esc(fjDiaCorto(d)) + ' al ' + esc(fjDiaCorto(h)) + '<br>Generado el ' + esc(ahora) + '<br>' + quien + '</div></div><div class="wrap">' +
-        (i ? '' : '<div class="hero">' +
-          '<div class="k main"><div class="l">Total a pagar</div><div class="v d">' + fm0(o.tot) + '</div><div class="s">' + (o.salario > 0 ? 'salario ' + fm0(o.salario) + ' + comisiones ' + fm0(o.com) : 'solo comisiones (sin salario fijo)') + '</div></div>' +
-          '<div class="k"><div class="l">Comisiones</div><div class="v t d">' + fm0(o.com) + '</div><div class="s">' + o.mov.length + ' movimiento' + (o.mov.length === 1 ? '' : 's') + '</div></div>' +
-          '<div class="k"><div class="l">Generó</div><div class="v d">' + fm0(o.gen) + '</div><div class="s">cobrado en lo que le paga comisión</div></div>' +
-          '<div class="k"><div class="l">Para la clínica</div><div class="v f d">' + fm0(o.cli) + '</div><div class="s">' + (o.gen ? Math.round(o.cli / o.gen * 100) : 0) + '% de lo que generó</div></div></div>' +
-          '<h2 class="d">Comisión por concepto</h2>' + conceptos + total) +
-        '<h2 class="d">Detalle de movimientos' + (n > 1 ? ' <small>' + (i ? 'continuación · ' : '') + 'hoja ' + (i + 1) + ' de ' + n + '</small>' : '') + '</h2>' +
-        (movs.length ? cab + tz.join('') + (ult ? '<div class="cmf-tot"><span>' + movs.length + ' movimiento' + (movs.length === 1 ? '' : 's') + '</span><span>' + fm0(o.gen) + ' cobrado · ' + fm0(o.com) + ' de comisión</span></div>' : '')
-          : '<div style="color:var(--g4)">Sin movimientos con comisión en el mes.</div>') +
-        (ult ? '<div class="cmf-nota">Reglas: ' + esc(comReglaTxt(o)) + '. Si el paciente es suyo pero lo atiende otro doctor, no cobra la consulta ni el procedimiento. Laboratorio y farmacia de sus pacientes cuentan lo venda quien lo venda.</div>' : '') +
-        '</div><div class="ft"><span>UMANA Ginecología · Comisiones · Cifras al momento de generar el reporte · Confidencial</span><span>Página ' + (hojas.length + 1) + ' de __TOT__</span></div></div>');
-    });
+    const G = {}; o.mov.forEach(x => { const k = x.c.paciente_id || 'sin'; (G[k] = G[k] || { n: pac(x), xs: [] }).xs.push(x); });
+    const gs = Object.values(G).map(g => Object.assign(g, { com: num(g.xs.reduce((s, x) => s + x.com, 0)), xs: g.xs.sort((a, b) => a.c.fecha.localeCompare(b.c.fecha) || (a.c.created_at || '').localeCompare(b.c.created_at || '')) }))
+      .sort((a, b) => b.com - a.com || a.n.localeCompare(b.n));
+    // Reparto en hojas: dos columnas → cada hoja aguanta el doble de alto en tarjetas de paciente
+    const alto = g => 23 + 18 * g.xs.length + 6, pg = [[]]; let u = 0, cap = 2 * (270 - 40 * Math.max(0, usados.length - 5));
+    gs.forEach(g => { if (u + alto(g) > cap && pg[pg.length - 1].length) { pg.push([]); u = 0; cap = 2 * 700; } pg[pg.length - 1].push(g); u += alto(g); });
+    const mx = Math.max(1, ...comConceptos(o).map(([k]) => o.con[k].c)), n = pg.length;
+    pg.forEach((tz, i) => hojas.push('<div class="page">' + hd(o, i > 0) + '<div class="wrap">' +
+      (i ? '' : '<div class="rx-hero"><div><small>Total a pagar · ' + esc(mesCorto) + '</small><b class="d">' + fm0(o.tot) + '</b>' +
+          '<div class="rx-stk">' + comConceptos(o).filter(([k]) => o.con[k].c > 0).map(([k]) => '<i style="width:' + (o.con[k].c / Math.max(o.com, 1) * 100).toFixed(2) + '%;background:' + COM_COL[k] + '"></i>').join('') + '</div></div>' +
+          '<div class="rx-mini"><div><small>Salario</small><b>' + (o.salario ? fm0(o.salario) : '—') + '</b></div><div><small>Comisiones</small><b style="color:#14764f">' + fm0(o.com) + '</b></div>' +
+          '<div><small>Generó</small><b>' + fm0(o.gen) + '</b></div><div><small>Para la clínica</small><b style="color:#7D3C98">' + fm0(o.cli) + '</b></div></div></div>' +
+        '<div class="rx-t2">Comisión por concepto</div>' + usados.map(([k, l]) => { const na = o.pct[k] == null, x = o.con[k];
+          return '<div class="rx-c' + (na || !x.c ? ' rx-na' : '') + '"><span class="rx-ic" style="background:' + hex(COM_COL[k], .14) + '">' + COM_ICO[k] + '</span><div class="rx-tx"><b>' + l + '</b><small>' + (na ? 'no aplica' : o.pct[k] + '% de ' + fm0(x.b)) + '</small></div>' +
+            '<div class="rx-bar"><i style="width:' + (na ? 0 : x.c / mx * 100).toFixed(1) + '%;background:' + COM_COL[k] + '"></i></div><b class="rx-vv">' + (na ? '—' : fm0(x.c)) + '</b></div>'; }).join('') +
+        '<div class="rx-tot"><div><span>Salario fijo</span><b>' + (o.salario ? fm0(o.salario) : 'No tiene') + '</b></div><div class="rx-op">+</div><div><span>Comisiones</span><b>' + fm0(o.com) + '</b></div><div class="rx-op">=</div><div class="rx-fin"><span>Total a pagar</span><b class="d">' + fm0(o.tot) + '</b></div></div>') +
+      '<div class="rx-t2">Detalle por paciente <small>' + gs.length + ' paciente' + (gs.length === 1 ? '' : 's') + ' · ' + o.mov.length + ' movimiento' + (o.mov.length === 1 ? '' : 's') + (n > 1 ? ' · hoja ' + (i + 1) + ' de ' + n : '') + '</small></div>' +
+      (gs.length ? '<div class="rx-g">' + tz.map(g => '<div class="rx-p"><div class="rx-ph"><b>' + esc(g.n) + '</b><em>' + fm0(g.com) + '</em></div>' +
+        g.xs.map(x => '<div class="rx-ln"><i style="background:' + COM_COL[x.con] + '"></i><span>' + esc(conc(x)) + (x.c.doctor_id !== o.id ? ' · ' + (x.c._farm ? 'vendió ' : 'prestó ') + esc(corto(nombreDoctora(x.c.doctor_id))) : '') + '</span><small>' + x.pct + '% de ' + fm0(x.monto) + ' · ' + esc(fjDiaCorto(x.c.fecha)) + '</small><b>' + fm0(x.com) + '</b></div>').join('') + '</div>').join('') + '</div>'
+        : '<div style="color:var(--g4)">Sin movimientos con comisión en el mes.</div>') +
+      (i === n - 1 ? '<div class="rx-nota">Reglas: ' + esc(comReglaTxt(o)) + '. Si el paciente es suyo pero lo atiende otro doctor, no cobra la consulta ni el procedimiento. Laboratorio y farmacia de sus pacientes cuentan lo venda quien lo venda.</div>' : '') +
+      '</div>__PIE__</div>'));
   });
   return '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Flash report comisiones</title>' + FLASH_FONTS + '<style>' + FLASH_CSS + FLASH_CSS_LINEAS + CMF_CSS + '</style></head><body>' +
-    hojas.join('').replace(/__TOT__/g, hojas.length) + '</body></html>';
+    hojas.map((x, i) => x.replace('__PIE__', '<div class="ft"><span>UMANA Ginecología · Comisiones · Cifras al momento de generar el reporte · Confidencial</span><span>Página ' + (i + 1) + ' de ' + hojas.length + '</span></div>')).join('') + '</body></html>';
 }
 async function exportarFlashComisiones(id) {
   const lista = id ? CM.res.filter(o => o.id === id) : CM.res;
