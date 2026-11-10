@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="app-version" content="2026.11.10-3"/>
+<meta name="app-version" content="2026.11.10-4"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>UMANA Productividad</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -3372,13 +3372,6 @@ function pintarComisiones() {
       usados.map(([k, l]) => { const na = o.pct[k] == null, x = o.con[k];
         return '<div class="' + (na || !x.c ? 'vac' : '') + '"><i style="background:' + COM_COL[k] + '"></i><span>' + l + '<small>' + (na ? 'no aplica' : o.pct[k] + '% de ' + fm0(x.b)) + '</small></span><b>' + (na ? '—' : fm0(x.c)) + '</b></div>'; }).join('') + '</div></div>' +
       '<div class="cmb-foot"><span>📈 Generó <b>' + fm0(o.gen) + '</b></span><span>🏥 Clínica <b>' + fm0(o.cli) + '</b></span><span>💵 Salario <b>' + (o.salario ? fm0(o.salario) : 'No tiene') + '</b></span></div></div>'; };
-  const det = o => '<div class="cmb-sec"><span class="fx-pill ' + comTono(o.id) + '">' + esc(o.nombre) + '</span><span>' + o.mov.length + ' movimiento' + (o.mov.length === 1 ? '' : 's') + '</span></div>' +
-    (o.mov.length ? o.mov.slice().sort((a, b) => a.c.fecha.localeCompare(b.c.fecha) || (a.c.created_at || '').localeCompare(b.c.created_at || '')).map(x => '<div class="cmb-r" style="--c:' + COM_COL[x.con] + '"><div class="f">' + esc(fjDiaCorto(x.c.fecha)) + '</div>' +
-      '<div class="pc"><b>' + esc(x.c.paciente ? x.c.paciente.nombre : 'Sin paciente (mostrador)') + '</b><small>' + (x.c._farm ? '💊 ' + esc(x.c.descripcion) : esc(servicioTxt(x.c))) + '</small></div>' +
-      '<div class="du"><small>Dueño</small>' + esc(comDueno(x.c)) + '</div><div class="du"><small>' + (x.c._farm ? 'Vendió' : 'Prestó') + '</small>' + esc(corto(nombreDoctora(x.c.doctor_id))) + '</div>' +
-      '<div><span class="cmb-chip" style="background:' + COM_COL[x.con] + '">' + COM_ICO[x.con] + ' ' + esc(COM_CORTO[x.con]) + ' · ' + x.pct + '%</span></div>' +
-      '<div class="mo"><small>Cobrado</small>' + m(x.monto) + '</div><div class="co"><small>Comisión</small>' + m(x.com) + '</div></div>').join('')
-      : '<div class="empty-note" style="padding:10px">Sin movimientos con comisión en el mes.</div>');
   $('cm-cont').innerHTML =
     '<div class="cmb-strip">' + kp('💰', 'Total a pagar', m(T.tot), 'salarios + comisiones del mes', 'linear-gradient(135deg,#0B1628,#1B3A6B)') +
       kp('✨', 'Comisiones', m(T.com), R.length + ' doctor' + (R.length === 1 ? '' : 'es') + ' con comisión', 'linear-gradient(135deg,#0E7C7B,#2ABFBF)') +
@@ -3386,7 +3379,53 @@ function pintarComisiones() {
       kp('🏥', 'Para la clínica', m(T.cli), (T.gen ? Math.round(T.cli / T.gen * 100) : 0) + '% de lo generado', 'linear-gradient(135deg,#5E2A84,#9B59B6)') + '</div>' +
     '<div class="cmb-grid">' + R.map(card).join('') + '</div>' +
     '<h3 class="cm-h3">Detalle del mes</h3><div class="cmb-nota">📐 Cada movimiento paga a un solo doctor. Si el paciente es suyo pero lo atiende otro doctor, no cobra la consulta ni el procedimiento · laboratorio y farmacia de sus pacientes cuentan lo venda quien lo venda.</div>' +
-    R.map(det).join('');
+    '<div id="cmb-det"></div>';
+  pintarDetalleCom();
+}
+/* ── Detalle del mes agrupado por paciente, con filtros (doctor, paciente, dueño, orden y concepto) ── */
+CM.f = { doc: '', q: '', dueno: '', ord: 'com', off: [] };
+function pintarDetalleCom() {
+  const box = $('cmb-det'); if (!box) return;
+  const R = CM.res, F = CM.f;
+  if (F.doc && !R.some(o => o.id === F.doc)) F.doc = '';
+  const todos = R.flatMap(o => o.mov.map(x => Object.assign({ doc: o }, x)));
+  const duenos = [...new Set(todos.map(x => x.c.dueno_id).filter(Boolean))];
+  box.innerHTML = '<div class="df"><div class="df-r1"><div class="df-seg" role="group" aria-label="Doctor">' +
+      '<button type="button" data-d="">👥 Todos</button>' + R.map(o => '<button type="button" data-d="' + o.id + '"><span class="dg-av" style="background:' + comColores(o.id)[0] + '">' + esc(comIni(o.nombre)) + '</span> ' + esc(corto(o.nombre)) + '</button>').join('') + '</div>' +
+      '<input class="df-q" id="cmb-q" type="search" placeholder="🔎 Buscar paciente…" autocomplete="off" aria-label="Buscar paciente">' +
+      '<label class="df-sel">Dueño: <select id="cmb-dueno"><option value="">Todos</option><option value="clinica">🏥 Clínica</option>' + duenos.map(id => '<option value="' + id + '">' + esc(corto(nombreDoctora(id))) + '</option>').join('') + '</select></label>' +
+      '<label class="df-sel">Ordenar: <select id="cmb-ord"><option value="com">Mayor comisión</option><option value="fecha">Fecha</option><option value="pac">Paciente (A-Z)</option></select></label></div>' +
+    '<div class="df-r2" id="cmb-chips"></div></div><div class="dh" id="cmb-list"></div>';
+  $('cmb-q').value = F.q; $('cmb-dueno').value = duenos.includes(F.dueno) || F.dueno === 'clinica' ? F.dueno : (F.dueno = ''); $('cmb-ord').value = F.ord;
+  box.querySelectorAll('[data-d]').forEach(b => b.onclick = () => { F.doc = b.dataset.d; pintarListaCom(); });
+  $('cmb-q').oninput = () => { F.q = $('cmb-q').value; pintarListaCom(); };
+  $('cmb-dueno').onchange = () => { F.dueno = $('cmb-dueno').value; pintarListaCom(); };
+  $('cmb-ord').onchange = () => { F.ord = $('cmb-ord').value; pintarListaCom(); };
+  pintarListaCom();
+}
+function pintarListaCom() {
+  const R = CM.res, F = CM.f, m = money, q = normTxt(F.q || '');
+  const pac = x => x.c.paciente ? x.c.paciente.nombre : 'Sin paciente (mostrador)';
+  $('cmb-det').querySelectorAll('[data-d]').forEach(b => b.classList.toggle('on', b.dataset.d === F.doc));
+  // todo menos el concepto: así los botones de concepto muestran cuántos hay de cada uno
+  const base = R.filter(o => !F.doc || o.id === F.doc).flatMap(o => o.mov.map(x => Object.assign({ doc: o }, x)))
+    .filter(x => (!q || normTxt(pac(x)).includes(q)) && (!F.dueno || (F.dueno === 'clinica' ? !x.c.dueno_id : x.c.dueno_id === F.dueno)));
+  const vis = base.filter(x => !F.off.includes(x.con));
+  $('cmb-chips').innerHTML = COM_CON.filter(([k]) => base.some(x => x.con === k) || F.off.includes(k)).map(([k]) => '<button type="button" class="df-chip' + (F.off.includes(k) ? ' off' : '') + '" data-k="' + k + '" style="--c:' + COM_COL[k] + '" aria-pressed="' + !F.off.includes(k) + '">' +
+      COM_ICO[k] + ' ' + esc(COM_CORTO[k]) + ' <em>' + base.filter(x => x.con === k).length + '</em></button>').join('') +
+    '<span class="df-res">' + vis.length + ' movimiento' + (vis.length === 1 ? '' : 's') + ' · ' + m(vis.reduce((s, x) => num(s + x.com), 0)) + ' de comisión</span>';
+  $('cmb-chips').querySelectorAll('[data-k]').forEach(b => b.onclick = () => { const k = b.dataset.k; F.off = F.off.includes(k) ? F.off.filter(z => z !== k) : F.off.concat(k); pintarListaCom(); });
+  const G = {}; vis.forEach(x => { const k = (x.c.paciente_id || 'sin') + '|' + x.doc.id; (G[k] = G[k] || { n: pac(x), doc: x.doc, xs: [] }).xs.push(x); });
+  const arr = Object.values(G).map(g => Object.assign(g, { com: num(g.xs.reduce((s, x) => s + x.com, 0)), cob: num(g.xs.reduce((s, x) => s + x.monto, 0)),
+    xs: g.xs.sort((a, b) => a.c.fecha.localeCompare(b.c.fecha) || (a.c.created_at || '').localeCompare(b.c.created_at || '')) }));
+  arr.sort(F.ord === 'pac' ? (a, b) => a.n.localeCompare(b.n) : F.ord === 'fecha' ? (a, b) => a.xs[0].c.fecha.localeCompare(b.xs[0].c.fecha) || a.n.localeCompare(b.n) : (a, b) => b.com - a.com || a.n.localeCompare(b.n));
+  $('cmb-list').innerHTML = arr.length ? arr.map(g => '<div class="dh-c"><div class="dh-h"><span class="dh-ini">' + esc(comIni(g.n)) + '</span><div class="dh-nm"><b>' + esc(g.n) + '</b><small>' + g.xs.length + ' movimiento' + (g.xs.length === 1 ? '' : 's') + ' · cobrado ' + m(g.cob) + '</small></div>' +
+      '<span class="dg-av" title="Cobra ' + esc(g.doc.nombre) + '" style="background:' + comColores(g.doc.id)[0] + '">' + esc(comIni(g.doc.nombre)) + '</span><div class="dh-t"><small>Comisión</small><b>' + m(g.com) + '</b></div></div>' +
+      '<div class="dh-stk">' + g.xs.map(x => '<i style="flex:' + Math.max(x.com, 1) + ';background:' + COM_COL[x.con] + '"></i>').join('') + '</div>' +
+      '<div class="dh-l">' + g.xs.map(x => '<div title="Dueño: ' + esc(x.c.dueno_id ? nombreDoctora(x.c.dueno_id) : 'Clínica UMANA') + ' · ' + (x.c._farm ? 'Vendió' : 'Prestó') + ': ' + esc(nombreDoctora(x.c.doctor_id)) + ' · Cobrado ' + m(x.monto) + '">' +
+        '<span class="dh-chip" style="background:' + COM_COL[x.con] + '">' + COM_ICO[x.con] + ' ' + x.pct + '%</span><span class="dh-q">' + (x.c._farm ? '💊 ' + esc(x.c.descripcion) : esc(servicioTxt(x.c))) +
+        (x.c.doctor_id !== g.doc.id ? ' · ' + (x.c._farm ? 'vendió ' : 'prestó ') + esc(corto(nombreDoctora(x.c.doctor_id))) : '') + '</span><span class="dh-f">' + esc(fjDiaCorto(x.c.fecha)) + '</span><b>' + m(x.com) + '</b></div>').join('') + '</div></div>').join('')
+    : '<div class="empty-note" style="grid-column:1/-1">' + (base.length || F.q || F.dueno || F.doc ? 'Ningún movimiento con esos filtros.' : 'Sin movimientos con comisión en el mes.') + '</div>';
 }
 async function exportarComisiones() {
   if (!CM.res.length) return toast('No hay comisiones para exportar.');
@@ -3462,6 +3501,20 @@ document.head.insertAdjacentHTML('beforeend', '<style>' + `
 .cmb-r .mo,.cmb-r .co{text-align:right;font-weight:700}.cmb-r .co{color:#14764f}.cmb-chip{display:inline-block;color:#fff;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:800;white-space:nowrap}
 @media(max-width:900px){.cmb-strip{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:760px){.cmb-foot span{white-space:normal;font-size:11px}.cmb-foot b{display:block;font-size:13px}.cmb-grid{grid-template-columns:1fr}.cmb-mid{grid-template-columns:1fr;justify-items:center}.cmb-leg{width:100%}.cmb-r{grid-template-columns:1fr 1fr}.cmb-r .pc{grid-column:1/-1}.cmb-k b{font-size:19px}}
+
+.dg-av{display:inline-grid;place-items:center;border-radius:50%;color:#fff;font-weight:800;font-size:10px;flex:0 0 auto;width:24px;height:24px}
+.df{background:#fff;border:1px solid #E3E8F0;border-radius:16px;padding:12px 14px;margin-bottom:14px;box-shadow:0 4px 14px rgba(11,22,40,.05)}
+.df-r1{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.df-seg{display:flex;background:#F1F4F9;border-radius:12px;padding:3px;flex-wrap:wrap}.df-seg button{border:0;background:none;padding:7px 12px;border-radius:9px;font-family:inherit;font-weight:600;font-size:12.5px;color:#5B6B84;display:flex;gap:6px;align-items:center;cursor:pointer}.df-seg button .dg-av{width:20px;height:20px;font-size:9px}.df-seg button.on{background:#0B1628;color:#fff}
+.df-q{flex:1;min-width:180px;border:1px solid #E3E8F0;border-radius:10px;padding:8px 12px;font-size:12.5px;font-family:inherit;color:#0B1628;outline:none}.df-q:focus{border-color:#2ABFBF}
+.df-sel{border:1px solid #E3E8F0;border-radius:10px;padding:4px 4px 4px 12px;font-size:12.5px;color:#5B6B84;display:flex;align-items:center;gap:4px}.df-sel select{border:0;background:none;font-family:inherit;font-weight:700;font-size:12.5px;color:#0B1628;padding:4px;outline:none;cursor:pointer}
+.df-r2{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}.df-chip{border:1.5px solid var(--c);background:var(--c);color:#fff;border-radius:999px;padding:5px 11px;font-family:inherit;font-weight:700;font-size:12px;display:flex;gap:6px;align-items:center;cursor:pointer}.df-chip em{font-style:normal;background:rgba(255,255,255,.25);border-radius:999px;padding:0 7px}
+.df-chip.off{background:#fff;color:#8794A8;border-color:#D7DEE8}.df-chip.off em{background:#F1F4F9}.df-res{margin-left:auto;font-size:12px;color:#5B6B84;font-weight:700}
+.dh{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:12px}.dh-c{background:#fff;border:1px solid #E3E8F0;border-radius:14px;padding:12px 14px;min-width:0}
+.dh-h{display:flex;gap:10px;align-items:center}.dh-ini{width:36px;height:36px;border-radius:11px;background:#EEF2F7;display:grid;place-items:center;font-weight:800;font-size:12px;color:#1B3A6B;flex:0 0 auto}.dh-nm{min-width:0}.dh-h b{display:block;font-size:14px}.dh-h small{font-size:11.5px;color:#8794A8}.dh-h .dg-av{margin-left:auto}
+.dh-t{text-align:right}.dh-t small{display:block;font-size:9.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#8794A8}.dh-t b{color:#14764f;font-size:17px;font-family:var(--font-d);white-space:nowrap}
+.dh-stk{display:flex;gap:2px;height:6px;border-radius:4px;overflow:hidden;margin:10px 0 6px}.dh-stk i{display:block}
+.dh-l>div{display:grid;grid-template-columns:auto minmax(0,1fr) auto 80px;gap:10px;align-items:center;padding:5px 0;border-top:1px dashed #EEF2F7;font-size:12px}.dh-chip{color:#fff;border-radius:999px;padding:2px 8px;font-size:10.5px;font-weight:800;white-space:nowrap}.dh-q{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#5B6B84}.dh-f{color:#8794A8;font-size:11px;white-space:nowrap}.dh-l b{text-align:right;color:#14764f}
+@media(max-width:760px){.dh{grid-template-columns:1fr}.df-res{margin-left:0;width:100%}.df-q{min-width:100%}.dh-l>div{grid-template-columns:auto minmax(0,1fr) 70px}.dh-f{display:none}}
 @media(max-width:760px){.cm-row{grid-template-columns:1fr 1fr}.cm-row .pc{grid-column:1/-1}.cmd-k b{font-size:14px}}
 ` + '</style>');
 
