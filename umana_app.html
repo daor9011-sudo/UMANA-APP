@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="app-version" content="2026.11.09-1"/>
+<meta name="app-version" content="2026.11.10-1"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>UMANA Productividad</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -3258,42 +3258,59 @@ const fjRango = () => {
 const fjDiaLargo = s => capF(parseISO(s).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
 const fjDiaCorto = s => parseISO(s).toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '');
 /* ── Comisiones (Dr. Carlos Lopez y Dra. Ana Isabel Gandara) ──
-   Reglas en comision_reglas (salario mensual, % paciente propio, % otros). En cada movimiento:
-   · si el dueño del registro tiene regla → él cobra su % propio (70%) de todo lo cobrado (servicios y farmacia);
-   · si quien prestó/vendió tiene regla y NO es el dueño → cobra su % de otros (10%).
-   Lo que no es comisión queda para la clínica. El salario se paga aparte, cada mes. */
+   Reglas en comision_reglas. Cada movimiento paga comisión a un solo doctor (o a ninguno):
+   · Consulta que él atiende: paciente suyo (dueño) → pct_propio (70%); paciente de la clínica u otro doctor → pct_otro (10%).
+     Si el paciente es suyo pero lo atiende otro doctor, no cobra.
+   · Procedimiento o cirugía de su paciente que él mismo hace → pct_proc (100%). Si no es su paciente o lo hace otro, no cobra.
+   · Laboratorio y farmacia de sus pacientes (lo venda quien lo venda) → pct_labfarm (10%).
+   · Ayudantía ("Ayudante Parto…") que él/ella presta, si tiene pct_ayudantia (Dra. Ana Isabel: 50%).
+   El salario fijo (puede ser 0) se suma aparte cada mes. Lo que no es comisión queda para la clínica. */
 let COM_REGLAS = null;
 async function cargarReglasComision(forzar) {
   if (COM_REGLAS && !forzar) return COM_REGLAS;
   try {
-    const r = await sb.from('comision_reglas').select('personal_id,salario,pct_propio,pct_otro,activo').eq('activo', true);
+    const r = await sb.from('comision_reglas').select('personal_id,salario,pct_propio,pct_otro,pct_proc,pct_labfarm,pct_ayudantia,activo').eq('activo', true);
     if (r.error) throw r.error;
-    COM_REGLAS = {}; (r.data || []).forEach(x => COM_REGLAS[x.personal_id] = { salario: num(x.salario), pctP: num(x.pct_propio), pctO: num(x.pct_otro) });
+    COM_REGLAS = {}; (r.data || []).forEach(x => COM_REGLAS[x.personal_id] = { salario: num(x.salario),
+      pct: { consP: num(x.pct_propio), consO: num(x.pct_otro), proc: x.pct_proc == null ? 100 : num(x.pct_proc), labf: x.pct_labfarm == null ? 10 : num(x.pct_labfarm), ayud: x.pct_ayudantia == null ? null : num(x.pct_ayudantia) } });
   } catch (e) { console.warn('[comisiones] sin reglas', e); COM_REGLAS = {}; }
   return COM_REGLAS;
 }
 const COM_LIN = [['cons', 'Consulta', '#22a8a8'], ['serv', 'Laboratorio', '#2F6FD0'], ['proc', 'Proced. y cirugías', '#1B3A6B'], ['farm', 'Farmacia y suplementos', '#7D3C98']];
-function calcComisiones(rows, reglas) {
-  const out = {};
-  Object.keys(reglas).forEach(id => out[id] = Object.assign({ id, nombre: nombreDoctora(id), mov: [], bP: 0, bO: 0, cP: 0, cO: 0,
-    lin: { cons: { g: 0, d: 0 }, serv: { g: 0, d: 0 }, proc: { g: 0, d: 0 }, farm: { g: 0, d: 0 } } }, reglas[id]));
-  // En el cruce (dueño y prestador con comisión) la clínica se queda con lo que sobra de las dos comisiones: 100 − 70 − 10 = 20%
-  const add = (id, c, propio, cli) => {
-    const o = out[id], v = ingreso(c), pct = propio ? o.pctP : o.pctO, com = num(v * pct / 100), k = lineaDe(c);
-    o.mov.push({ c, propio, pct, monto: v, com, cli });
-    if (propio) { o.bP = num(o.bP + v); o.cP = num(o.cP + com); } else { o.bO = num(o.bO + v); o.cO = num(o.cO + com); }
-    o.lin[k].g = num(o.lin[k].g + v); o.lin[k].d = num(o.lin[k].d + com); o.lin[k].c = num((o.lin[k].c || 0) + cli); o.cli = num((o.cli || 0) + cli);
-  };
-  rows.filter(c => !c.no_vino && ingreso(c) > 0).forEach(c => {
-    const v = ingreso(c), dP = c.dueno_id && out[c.dueno_id] ? out[c.dueno_id] : null, dO = out[c.doctor_id] && c.doctor_id !== c.dueno_id ? out[c.doctor_id] : null;
-    if (!dP && !dO) return;
-    const cli = num(v - (dP ? num(v * dP.pctP / 100) : 0) - (dO ? num(v * dO.pctO / 100) : 0));
-    if (dP) add(dP.id, c, true, cli);
-    if (dO) add(dO.id, c, false, cli);
-  });
-  return Object.values(out).map(o => Object.assign(o, { com: num(o.cP + o.cO), gen: num(o.bP + o.bO), cli: o.cli || 0, tot: num(o.salario + o.cP + o.cO) }))
-    .sort((a, b) => a.nombre.localeCompare(b.nombre));
+const COM_CON = [['consP', 'Consultas de sus pacientes'], ['consO', 'Consultas a pacientes de la clínica u otro doctor'], ['proc', 'Procedimientos y cirugías de sus pacientes'],
+  ['labf', 'Laboratorios y farmacia de sus pacientes'], ['ayud', 'Ayudantías']];
+const COM_CORTO = { consP: 'Consulta propia', consO: 'Consulta otro', proc: 'Proced. propio', labf: 'Lab/farm. propio', ayud: 'Ayudantía' };
+const esAyudantia = c => !c._farm && /ayudant/i.test(c.tipo_consulta || '');
+/* Devuelve [doctorId, concepto] o null */
+function comisionDe(c, out) {
+  const k = lineaDe(c), X = c.doctor_id, Dn = c.dueno_id || null, x = out[X];
+  if (k === 'cons') return x ? [X, Dn === X ? 'consP' : 'consO'] : null;
+  if (k === 'proc') {
+    if (esAyudantia(c) && x && x.pct.ayud != null) return [X, 'ayud'];
+    return x && Dn === X ? [X, 'proc'] : null;
+  }
+  return Dn && out[Dn] ? [Dn, 'labf'] : null;   // laboratorio y farmacia
 }
+function calcComisiones(rows, reglas) {
+  const out = {}, vacio = () => ({ g: 0, d: 0, c: 0 });
+  Object.keys(reglas).forEach(id => out[id] = Object.assign({ id, nombre: nombreDoctora(id), mov: [],
+    con: { consP: { b: 0, c: 0 }, consO: { b: 0, c: 0 }, proc: { b: 0, c: 0 }, labf: { b: 0, c: 0 }, ayud: { b: 0, c: 0 } },
+    lin: { cons: vacio(), serv: vacio(), proc: vacio(), farm: vacio() } }, reglas[id]));
+  rows.filter(c => !c.no_vino && ingreso(c) > 0).forEach(c => {
+    const r = comisionDe(c, out); if (!r) return;
+    const o = out[r[0]], con = r[1], v = ingreso(c), pct = o.pct[con], com = num(v * pct / 100), cli = num(v - com), k = lineaDe(c);
+    o.mov.push({ c, con, pct, monto: v, com, cli });
+    o.con[con].b = num(o.con[con].b + v); o.con[con].c = num(o.con[con].c + com);
+    o.lin[k].g = num(o.lin[k].g + v); o.lin[k].d = num(o.lin[k].d + com); o.lin[k].c = num(o.lin[k].c + cli);
+  });
+  return Object.values(out).map(o => {
+    const gen = num(COM_CON.reduce((s, [k]) => s + o.con[k].b, 0)), com = num(COM_CON.reduce((s, [k]) => s + o.con[k].c, 0));
+    return Object.assign(o, { gen, com, cli: num(gen - com), tot: num(o.salario + com) });
+  }).sort((a, b) => a.nombre.localeCompare(b.nombre));
+}
+const comConceptos = o => COM_CON.filter(([k]) => o.pct[k] != null);
+const comReglaTxt = o => (o.salario > 0 ? 'Salario fijo ' + money(o.salario) + ' al mes' : 'Sin salario fijo') + ' · ' +
+  comConceptos(o).map(([k, l]) => l.toLowerCase().replace(/^./, s => s.toUpperCase()) + ' ' + o.pct[k] + '%').join(' · ');
 const comTono = id => Object.keys(COM_REGLAS || {}).sort((a, b) => nombreDoctora(a).localeCompare(nombreDoctora(b))).indexOf(id) % 2 ? 'd2' : 'd1';
 const comDueno = c => c.dueno_id ? corto(nombreDoctora(c.dueno_id)) : '🏥 Clínica';
 
@@ -3338,37 +3355,34 @@ async function cargarComisiones() {
 function pintarComisiones() {
   const R = CM.res, m = money, mesTxt = labelMes(CM.mes).split(' ')[0].toLowerCase();
   if (!R.length) { $('cm-cont').innerHTML = '<div class="empty-note">Falta configurar las reglas de comisión en la base (cambio 13).</div>'; return; }
-  const r0 = R[0];
   const card = o => '<div class="cm-card"><div class="cm-h"><span class="fx-pill ' + comTono(o.id) + '">' + esc(o.nombre) + '</span><div class="cm-tot"><small>Total a pagar · ' + esc(mesTxt) + '</small><b>' + m(o.tot) + '</b></div></div>' +
-    '<div class="cm-l"><span>Salario fijo</span><b>' + m(o.salario) + '</b></div>' +
-    '<div class="cm-l"><span>+ Comisión pacientes propios <i>' + o.pctP + '% de ' + m(o.bP) + '</i></span><b class="pos">' + m(o.cP) + '</b></div>' +
-    '<div class="cm-l"><span>+ Comisión otros servicios, farmacia y suplementos <i>' + o.pctO + '% de ' + m(o.bO) + '</i></span><b class="pos">' + m(o.cO) + '</b></div>' +
+    '<div class="cm-l"><span>Salario fijo' + (o.salario > 0 ? '' : ' <i>no tiene salario fijo</i>') + '</span><b>' + m(o.salario) + '</b></div>' +
+    comConceptos(o).map(([k, l]) => '<div class="cm-l"><span>+ ' + l + ' <i>' + o.pct[k] + '% de ' + m(o.con[k].b) + '</i></span><b class="pos">' + m(o.con[k].c) + '</b></div>').join('') +
     '<div class="cm-l tot"><span>= Total a pagar</span><b>' + m(o.tot) + '</b></div>' +
-    '<div class="cm-cli"><span>🏥 Para la clínica de lo que generó</span><b>' + m(o.cli) + '</b><small>' + m(o.gen) + ' generados − comisiones' + (num(o.gen - o.com - o.cli) > 0 ? ' (incluye ' + m(num(o.gen - o.com - o.cli)) + ' del otro doctor en pacientes compartidos)' : '') + '</small></div></div>';
+    '<div class="cm-cli"><span>🏥 Para la clínica de lo que generó</span><b>' + m(o.cli) + '</b><small>' + m(o.gen) + ' generados − ' + m(o.com) + ' de comisión</small></div></div>';
   const det = o => '<div class="cm-sec"><div class="cm-sec-h"><span class="fx-pill ' + comTono(o.id) + '">' + esc(o.nombre) + '</span><span>' + o.mov.length + ' movimiento' + (o.mov.length === 1 ? '' : 's') + '</span></div>' +
     (o.mov.length ? o.mov.slice().sort((a, b) => a.c.fecha.localeCompare(b.c.fecha)).map(x => '<div class="cm-row"><div class="f">' + esc(fjDiaCorto(x.c.fecha)) + '</div>' +
       '<div class="pc"><b>' + esc(x.c.paciente ? x.c.paciente.nombre : 'Sin paciente (mostrador)') + '</b><small>' + (x.c._farm ? '💊 ' : '') + esc(x.c._farm ? x.c.descripcion : servicioTxt(x.c)) + '</small></div>' +
       '<div class="du"><small>Dueño</small>' + esc(comDueno(x.c)) + '</div><div class="du"><small>' + (x.c._farm ? 'Vendió' : 'Prestó') + '</small>' + esc(corto(nombreDoctora(x.c.doctor_id))) + '</div>' +
-      '<div><span class="cm-regla ' + (x.propio ? 'r70' : 'r10') + '">' + (x.propio ? 'Propio · ' : 'Otro · ') + x.pct + '%</span></div>' +
+      '<div><span class="cm-regla ' + (x.pct >= 50 ? 'r70' : 'r10') + '">' + COM_CORTO[x.con] + ' · ' + x.pct + '%</span></div>' +
       '<div class="mo"><small>Cobrado</small>' + m(x.monto) + '</div><div class="co"><small>Comisión</small>' + m(x.com) + '</div><div class="cl"><small>Clínica</small>' + m(x.cli) + '</div></div>').join('')
       : '<div class="empty-note" style="padding:10px">Sin movimientos en el mes.</div>') + '</div>';
   $('cm-cont').innerHTML =
-    '<div class="cm-reglas">📐 Reglas: <b>paciente propio</b> (el doctor es el dueño del registro) → ' + r0.pctP + '% doctor / ' + (100 - r0.pctP) + '% clínica, en todo lo que se haga o compre · ' +
-      '<b>paciente de la clínica u otro doctor</b> → ' + r0.pctO + '% para quien presta o vende / ' + (100 - r0.pctO) + '% clínica · Salario fijo ' + m(r0.salario) + ' al mes.</div>' +
+    '<div class="cm-reglas">📐 Cada movimiento paga a un solo doctor. Si el paciente es suyo pero lo atiende otro doctor, no cobra la consulta ni el procedimiento · laboratorio y farmacia de sus pacientes cuentan lo venda quien lo venda.</div>' +
     '<div class="cm-cards">' + R.map(card).join('') + '</div><h3 class="cm-h3">Detalle del mes</h3>' + R.map(det).join('');
 }
 async function exportarComisiones() {
   if (!CM.res.length) return toast('No hay comisiones para exportar.');
   await cargarScript(CDN.xlsx);
   const wb = XLSX.utils.book_new(), [d, h] = cmRango();
-  const res = [['Doctor', 'Salario', 'Base propios', '% propio', 'Comisión propios', 'Base otros', '% otros', 'Comisión otros', 'Total a pagar', 'Para la clínica']]
-    .concat(CM.res.map(o => [o.nombre, o.salario, o.bP, o.pctP, o.cP, o.bO, o.pctO, o.cO, o.tot, o.cli]));
-  const ws = XLSX.utils.aoa_to_sheet(res); ws['!cols'] = [28, 12, 14, 9, 16, 12, 9, 15, 15, 15].map(w => ({ wch: w }));
+  const res = [['Doctor', 'Salario'].concat(...COM_CON.map(([k, l]) => [l + ' · base', '%', l + ' · comisión']), ['Total comisión', 'Total a pagar', 'Para la clínica'])]
+    .concat(CM.res.map(o => [o.nombre, o.salario].concat(...COM_CON.map(([k]) => [o.con[k].b, o.pct[k] == null ? '' : o.pct[k], o.con[k].c]), [o.com, o.tot, o.cli])));
+  const ws = XLSX.utils.aoa_to_sheet(res); ws['!cols'] = res[0].map((h, i) => ({ wch: i === 0 ? 28 : h === '%' ? 6 : 16 }));
   XLSX.utils.book_append_sheet(wb, ws, 'Resumen');
   const det = [['Doctor', 'Fecha', 'Paciente', 'Concepto', 'Dueño', 'Prestó / vendió', 'Regla', '%', 'Cobrado', 'Comisión', 'Clínica']];
   CM.res.forEach(o => o.mov.forEach(x => det.push([o.nombre, fmtD(x.c.fecha), x.c.paciente ? x.c.paciente.nombre : 'Sin paciente', x.c._farm ? 'Farmacia: ' + x.c.descripcion : servicioTxt(x.c),
-    x.c.dueno_id ? nombreDoctora(x.c.dueno_id) : 'Clínica UMANA', nombreDoctora(x.c.doctor_id), x.propio ? 'Paciente propio' : 'Otro', x.pct, x.monto, x.com, x.cli])));
-  const ws2 = XLSX.utils.aoa_to_sheet(det); ws2['!cols'] = [26, 11, 26, 34, 24, 24, 15, 6, 12, 12, 12].map(w => ({ wch: w }));
+    x.c.dueno_id ? nombreDoctora(x.c.dueno_id) : 'Clínica UMANA', nombreDoctora(x.c.doctor_id), COM_CON.find(z => z[0] === x.con)[1], x.pct, x.monto, x.com, x.cli])));
+  const ws2 = XLSX.utils.aoa_to_sheet(det); ws2['!cols'] = [26, 11, 26, 34, 24, 24, 34, 6, 12, 12, 12].map(w => ({ wch: w }));
   XLSX.utils.book_append_sheet(wb, ws2, 'Detalle');
   XLSX.writeFile(wb, 'UMANA_Comisiones_' + CM.mes + '.xlsx');
 }
@@ -3383,12 +3397,12 @@ async function pintarComisionesDash(rows, lbl) {
   if (!vis.length) { sec.style.display = 'none'; return; }
   const m = fmt0;
   sec.innerHTML = '<div class="prod-head"><div class="prod-title">💰 Doctores con comisión</div><div class="prod-period">' + esc(lbl) + '</div></div>' +
-    '<div class="prod-sub">Lo que generó cada doctor (sus pacientes propios y lo que prestó o vendió), cuánto gana de comisión y cuánto queda para la clínica por consulta, laboratorio, procedimientos y farmacia</div>' +
+    '<div class="prod-sub">Lo que generó cada doctor con sus reglas de comisión, cuánto gana y cuánto queda para la clínica por consulta, laboratorio, procedimientos y farmacia</div>' +
     '<div class="fin-2col">' + vis.map(o => '<div class="cmd"><div class="cmd-h"><span class="fx-pill ' + comTono(o.id) + '">' + esc(o.nombre) + '</span>' +
       '<div class="cmd-k"><div><small>Generó</small><b>' + m(o.gen) + '</b></div><div><small>Gana el doctor</small><b class="pos">' + m(o.com) + '</b></div><div><small>Queda a la clínica</small><b>' + m(o.cli) + '</b></div></div></div>' +
       '<div class="cmd-t"><div class="cmd-r hd"><span></span><span>Generó</span><span>Doctor</span><span>Clínica</span></div>' +
       COM_LIN.filter(l => o.lin[l[0]].g > 0).map(l => { const x = o.lin[l[0]]; return '<div class="cmd-r"><span><i style="background:' + l[2] + '"></i>' + l[1] + '</span><span>' + m(x.g) + '</span><span class="pos">' + m(x.d) + '</span><span>' + m(x.c || 0) + '</span></div>'; }).join('') +
-      '</div><div class="cmd-n">Propios ' + m(o.bP) + ' al ' + o.pctP + '% · otros ' + m(o.bO) + ' al ' + o.pctO + '% · + salario fijo ' + m(o.salario) + ' al mes</div></div>').join('') + '</div>';
+      '</div><div class="cmd-n">' + esc(comReglaTxt(o)) + '</div></div>').join('') + '</div>';
   sec.style.display = '';
 }
 
