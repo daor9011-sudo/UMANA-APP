@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="app-version" content="2026.11.10-2"/>
+<meta name="app-version" content="2026.11.10-3"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>UMANA Productividad</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -3353,24 +3353,40 @@ async function cargarComisiones() {
     $('cm-cont').innerHTML = '<div class="empty-note">No se pudieron cargar las comisiones. ' + esc(traducirError(e)) + '</div>';
   }
 }
+const COM_ICO = { consP: '🩺', consO: '👥', proc: '🔬', labf: '🧪', ayud: '🤝' };
+const comIni = n => String(n || '').replace(/^(Dra?\.)\s*/, '').split(' ').slice(0, 2).map(x => x[0] || '').join('');
+const comColores = id => comTono(id) === 'd2' ? ['#0E7C7B', '#2ABFBF'] : ['#1B3A6B', '#2F6FD0'];
 function pintarComisiones() {
-  const R = CM.res, m = money, mesTxt = labelMes(CM.mes).split(' ')[0].toLowerCase();
+  const R = CM.res, m = money;
   if (!R.length) { $('cm-cont').innerHTML = '<div class="empty-note">Falta configurar las reglas de comisión en la base (cambio 13).</div>'; return; }
-  const card = o => '<div class="cm-card"><div class="cm-h"><span class="fx-pill ' + comTono(o.id) + '">' + esc(o.nombre) + '</span><div class="cm-tot"><small>Total a pagar · ' + esc(mesTxt) + '</small><b>' + m(o.tot) + '</b></div></div>' +
-    '<div class="cm-l"><span>Salario fijo' + (o.salario > 0 ? '' : ' <i>no tiene salario fijo</i>') + '</span><b>' + m(o.salario) + '</b></div>' +
-    comConceptos(o).map(([k, l]) => '<div class="cm-l"><span>+ ' + l + ' <i>' + o.pct[k] + '% de ' + m(o.con[k].b) + '</i></span><b class="pos">' + m(o.con[k].c) + '</b></div>').join('') +
-    '<div class="cm-l tot"><span>= Total a pagar</span><b>' + m(o.tot) + '</b></div>' +
-    '<div class="cm-cli"><span>🏥 Para la clínica de lo que generó</span><b>' + m(o.cli) + '</b><small>' + m(o.gen) + ' generados − ' + m(o.com) + ' de comisión</small></div></div>';
-  const det = o => '<div class="cm-sec"><div class="cm-sec-h"><span class="fx-pill ' + comTono(o.id) + '">' + esc(o.nombre) + '</span><span>' + o.mov.length + ' movimiento' + (o.mov.length === 1 ? '' : 's') + '</span></div>' +
-    (o.mov.length ? o.mov.slice().sort((a, b) => a.c.fecha.localeCompare(b.c.fecha)).map(x => '<div class="cm-row"><div class="f">' + esc(fjDiaCorto(x.c.fecha)) + '</div>' +
-      '<div class="pc"><b>' + esc(x.c.paciente ? x.c.paciente.nombre : 'Sin paciente (mostrador)') + '</b><small>' + (x.c._farm ? '💊 ' : '') + esc(x.c._farm ? x.c.descripcion : servicioTxt(x.c)) + '</small></div>' +
+  const T = R.reduce((a, o) => ({ tot: a.tot + o.tot, com: a.com + o.com, gen: a.gen + o.gen, cli: a.cli + o.cli }), { tot: 0, com: 0, gen: 0, cli: 0 });
+  const kp = (ic, l, v, s, g) => '<div class="cmb-k" style="background:' + g + '"><span class="cmb-i">' + ic + '</span><small>' + l + '</small><b>' + v + '</b><em>' + s + '</em></div>';
+  // Mismos renglones en todas las tarjetas (lo que a un doctor no le aplica sale como "no aplica") para que queden simétricas
+  const usados = COM_CON.filter(([k]) => R.some(o => o.pct[k] != null));
+  const card = o => { const [c1, c2] = comColores(o.id); let acc = 0;
+    const g = o.com > 0 ? usados.filter(([k]) => o.con[k].c > 0).map(([k]) => { const a = acc; acc += o.con[k].c / o.com * 360; return COM_COL[k] + ' ' + a.toFixed(2) + 'deg ' + acc.toFixed(2) + 'deg'; }).join(',') : '#EEF2F7 0deg 360deg';
+    return '<div class="cmb-card" style="--t:' + c2 + '"><div class="cmb-h"><div class="cmb-av" style="background:' + c1 + ';border-color:' + c2 + '">' + esc(comIni(o.nombre)) + '</div>' +
+      '<div class="cmb-n"><b>' + esc(o.nombre) + '</b><small>' + (o.salario > 0 ? 'Salario ' + fm0(o.salario) + ' + comisiones' : 'Solo comisiones') + '</small></div>' +
+      '<div class="cmb-t"><small>Total a pagar</small><b>' + m(o.tot) + '</b></div></div>' +
+      '<div class="cmb-mid"><div class="cmb-don" style="background:conic-gradient(' + g + ')"><div><small>Comisión</small><b>' + fm0(o.com) + '</b></div></div><div class="cmb-leg">' +
+      usados.map(([k, l]) => { const na = o.pct[k] == null, x = o.con[k];
+        return '<div class="' + (na || !x.c ? 'vac' : '') + '"><i style="background:' + COM_COL[k] + '"></i><span>' + l + '<small>' + (na ? 'no aplica' : o.pct[k] + '% de ' + fm0(x.b)) + '</small></span><b>' + (na ? '—' : fm0(x.c)) + '</b></div>'; }).join('') + '</div></div>' +
+      '<div class="cmb-foot"><span>📈 Generó <b>' + fm0(o.gen) + '</b></span><span>🏥 Clínica <b>' + fm0(o.cli) + '</b></span><span>💵 Salario <b>' + (o.salario ? fm0(o.salario) : 'No tiene') + '</b></span></div></div>'; };
+  const det = o => '<div class="cmb-sec"><span class="fx-pill ' + comTono(o.id) + '">' + esc(o.nombre) + '</span><span>' + o.mov.length + ' movimiento' + (o.mov.length === 1 ? '' : 's') + '</span></div>' +
+    (o.mov.length ? o.mov.slice().sort((a, b) => a.c.fecha.localeCompare(b.c.fecha) || (a.c.created_at || '').localeCompare(b.c.created_at || '')).map(x => '<div class="cmb-r" style="--c:' + COM_COL[x.con] + '"><div class="f">' + esc(fjDiaCorto(x.c.fecha)) + '</div>' +
+      '<div class="pc"><b>' + esc(x.c.paciente ? x.c.paciente.nombre : 'Sin paciente (mostrador)') + '</b><small>' + (x.c._farm ? '💊 ' + esc(x.c.descripcion) : esc(servicioTxt(x.c))) + '</small></div>' +
       '<div class="du"><small>Dueño</small>' + esc(comDueno(x.c)) + '</div><div class="du"><small>' + (x.c._farm ? 'Vendió' : 'Prestó') + '</small>' + esc(corto(nombreDoctora(x.c.doctor_id))) + '</div>' +
-      '<div><span class="cm-regla ' + (x.pct >= 50 ? 'r70' : 'r10') + '">' + COM_CORTO[x.con] + ' · ' + x.pct + '%</span></div>' +
-      '<div class="mo"><small>Cobrado</small>' + m(x.monto) + '</div><div class="co"><small>Comisión</small>' + m(x.com) + '</div><div class="cl"><small>Clínica</small>' + m(x.cli) + '</div></div>').join('')
-      : '<div class="empty-note" style="padding:10px">Sin movimientos en el mes.</div>') + '</div>';
+      '<div><span class="cmb-chip" style="background:' + COM_COL[x.con] + '">' + COM_ICO[x.con] + ' ' + esc(COM_CORTO[x.con]) + ' · ' + x.pct + '%</span></div>' +
+      '<div class="mo"><small>Cobrado</small>' + m(x.monto) + '</div><div class="co"><small>Comisión</small>' + m(x.com) + '</div></div>').join('')
+      : '<div class="empty-note" style="padding:10px">Sin movimientos con comisión en el mes.</div>');
   $('cm-cont').innerHTML =
-    '<div class="cm-reglas">📐 Cada movimiento paga a un solo doctor. Si el paciente es suyo pero lo atiende otro doctor, no cobra la consulta ni el procedimiento · laboratorio y farmacia de sus pacientes cuentan lo venda quien lo venda.</div>' +
-    '<div class="cm-cards">' + R.map(card).join('') + '</div><h3 class="cm-h3">Detalle del mes</h3>' + R.map(det).join('');
+    '<div class="cmb-strip">' + kp('💰', 'Total a pagar', m(T.tot), 'salarios + comisiones del mes', 'linear-gradient(135deg,#0B1628,#1B3A6B)') +
+      kp('✨', 'Comisiones', m(T.com), R.length + ' doctor' + (R.length === 1 ? '' : 'es') + ' con comisión', 'linear-gradient(135deg,#0E7C7B,#2ABFBF)') +
+      kp('📈', 'Generaron', m(T.gen), 'cobrado con comisión', 'linear-gradient(135deg,#2F6FD0,#5B9BF0)') +
+      kp('🏥', 'Para la clínica', m(T.cli), (T.gen ? Math.round(T.cli / T.gen * 100) : 0) + '% de lo generado', 'linear-gradient(135deg,#5E2A84,#9B59B6)') + '</div>' +
+    '<div class="cmb-grid">' + R.map(card).join('') + '</div>' +
+    '<h3 class="cm-h3">Detalle del mes</h3><div class="cmb-nota">📐 Cada movimiento paga a un solo doctor. Si el paciente es suyo pero lo atiende otro doctor, no cobra la consulta ni el procedimiento · laboratorio y farmacia de sus pacientes cuentan lo venda quien lo venda.</div>' +
+    R.map(det).join('');
 }
 async function exportarComisiones() {
   if (!CM.res.length) return toast('No hay comisiones para exportar.');
@@ -3427,6 +3443,25 @@ document.head.insertAdjacentHTML('beforeend', '<style>' + `
 .cmd-r.hd{font-size:9.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#8794A8}.cmd-r i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
 .cmd-n{font-size:11px;color:#8794A8;margin-top:7px}
 .prest-w{display:inline-flex;flex-direction:column;gap:2px;flex:0 0 auto}.prest-l{font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--g6,#64748b)}
+
+.cmb-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:16px}.cmb-k{color:#fff;border-radius:16px;padding:14px 16px;position:relative;overflow:hidden;box-shadow:0 8px 22px rgba(11,22,40,.12);min-width:0}
+.cmb-k small{display:block;font-size:10.5px;letter-spacing:.8px;text-transform:uppercase;font-weight:700;opacity:.8}.cmb-k b{display:block;font-family:var(--font-d);font-size:24px;font-weight:800;margin-top:2px;white-space:nowrap}.cmb-k em{font-style:normal;font-size:11.5px;opacity:.8}
+.cmb-i{position:absolute;right:12px;top:10px;font-size:26px;opacity:.35}
+.cmb-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px;margin-top:16px;align-items:stretch}
+.cmb-card{display:flex;flex-direction:column;background:#fff;border:1px solid #E3E8F0;border-top:5px solid var(--t);border-radius:16px;padding:16px 18px;box-shadow:0 6px 20px rgba(11,22,40,.06)}
+.cmb-h{display:flex;gap:12px;align-items:center;min-height:52px}.cmb-av{width:42px;height:42px;border-radius:50%;border:2px solid;display:grid;place-items:center;font-weight:800;font-size:14px;color:#fff;flex:0 0 auto}
+.cmb-n b{display:block;font-size:15px}.cmb-n small{font-size:12px;color:#8794A8}.cmb-t{margin-left:auto;text-align:right}.cmb-t small{display:block;font-size:10px;letter-spacing:.6px;text-transform:uppercase;color:#8794A8;font-weight:700}.cmb-t b{font-family:var(--font-d);font-size:26px;color:#0B1628;white-space:nowrap}
+.cmb-mid{display:grid;grid-template-columns:150px 1fr;gap:18px;align-items:center;margin-top:14px;flex:1}.cmb-don{width:150px;height:150px;border-radius:50%;display:grid;place-items:center}.cmb-don>div{width:100px;height:100px;border-radius:50%;background:#fff;display:grid;place-content:center;text-align:center}
+.cmb-don small{font-size:10px;color:#8794A8;font-weight:700;text-transform:uppercase}.cmb-don b{font-family:var(--font-d);font-size:19px;color:#14764f}
+.cmb-leg>div{display:grid;grid-template-columns:12px 1fr auto;gap:9px;align-items:center;min-height:39px;padding:4px 0;border-bottom:1px dashed #E3E8F0;font-size:12.5px}.cmb-leg>div.vac{opacity:.4}.cmb-leg i{width:12px;height:12px;border-radius:4px}.cmb-leg small{display:block;font-size:11px;color:#8794A8}.cmb-leg b{color:#14764f}
+.cmb-foot{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}.cmb-foot span{background:#F4F7FB;border-radius:10px;padding:8px 10px;font-size:12px;color:#5B6B84;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cmb-foot b{color:#0B1628}
+.cmb-nota{font-size:11.5px;color:#8794A8;margin:-4px 0 8px}
+.cmb-sec{display:flex;justify-content:space-between;align-items:center;margin:14px 0 6px;font-size:12px;color:#5B6B84;font-weight:600}
+.cmb-r{display:grid;grid-template-columns:96px minmax(0,1.6fr) 120px 130px 180px 95px 95px;gap:10px;align-items:center;padding:9px 14px;border:1px solid #E3E8F0;border-left:4px solid var(--c);border-radius:10px;margin-bottom:6px;background:#fff;font-size:12.5px}
+.cmb-r small{display:block;font-size:10px;color:#8794A8;font-weight:700;text-transform:uppercase;letter-spacing:.4px}.cmb-r .pc small{text-transform:none;letter-spacing:0;font-weight:500;font-size:11.5px;color:#5B6B84}.cmb-r .f{color:#5B6B84;font-weight:600}
+.cmb-r .mo,.cmb-r .co{text-align:right;font-weight:700}.cmb-r .co{color:#14764f}.cmb-chip{display:inline-block;color:#fff;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:800;white-space:nowrap}
+@media(max-width:900px){.cmb-strip{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){.cmb-foot span{white-space:normal;font-size:11px}.cmb-foot b{display:block;font-size:13px}.cmb-grid{grid-template-columns:1fr}.cmb-mid{grid-template-columns:1fr;justify-items:center}.cmb-leg{width:100%}.cmb-r{grid-template-columns:1fr 1fr}.cmb-r .pc{grid-column:1/-1}.cmb-k b{font-size:19px}}
 @media(max-width:760px){.cm-row{grid-template-columns:1fr 1fr}.cm-row .pc{grid-column:1/-1}.cmd-k b{font-size:14px}}
 ` + '</style>');
 
