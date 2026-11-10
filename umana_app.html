@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="app-version" content="2026.11.10-4"/>
+<meta name="app-version" content="2026.11.10-5"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>UMANA Productividad</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -3355,7 +3355,10 @@ async function cargarComisiones() {
 }
 const COM_ICO = { consP: '🩺', consO: '👥', proc: '🔬', labf: '🧪', ayud: '🤝' };
 const comIni = n => String(n || '').replace(/^(Dra?\.)\s*/, '').split(' ').slice(0, 2).map(x => x[0] || '').join('');
-const comColores = id => comTono(id) === 'd2' ? ['#0E7C7B', '#2ABFBF'] : ['#1B3A6B', '#2F6FD0'];
+// Color de cada doctor con comisión: [oscuro, claro]. Distinto de los colores de los conceptos.
+let COM_DOC_COL = { d1: ['#4338CA', '#6366F1'], d2: ['#C2410C', '#F97316'] };   // Dr. Carlos índigo · Dra. Ana naranja
+const comColores = id => COM_DOC_COL[comTono(id)];
+const comPill = o => { const [c1, c2] = comColores(o.id); return '<span class="cm-dpill" style="background:color-mix(in srgb,' + c2 + ' 16%,#fff);color:' + c1 + '">' + esc(o.nombre) + '</span>'; };
 function pintarComisiones() {
   const R = CM.res, m = money;
   if (!R.length) { $('cm-cont').innerHTML = '<div class="empty-note">Falta configurar las reglas de comisión en la base (cambio 13).</div>'; return; }
@@ -3365,7 +3368,7 @@ function pintarComisiones() {
   const usados = COM_CON.filter(([k]) => R.some(o => o.pct[k] != null));
   const card = o => { const [c1, c2] = comColores(o.id); let acc = 0;
     const g = o.com > 0 ? usados.filter(([k]) => o.con[k].c > 0).map(([k]) => { const a = acc; acc += o.con[k].c / o.com * 360; return COM_COL[k] + ' ' + a.toFixed(2) + 'deg ' + acc.toFixed(2) + 'deg'; }).join(',') : '#EEF2F7 0deg 360deg';
-    return '<div class="cmb-card" style="--t:' + c2 + '"><div class="cmb-h"><div class="cmb-av" style="background:' + c1 + ';border-color:' + c2 + '">' + esc(comIni(o.nombre)) + '</div>' +
+    return '<div class="cmb-card" style="--t:' + c2 + ';--t1:' + c1 + '"><div class="cmb-h"><div class="cmb-av" style="background:' + c1 + ';border-color:' + c2 + '">' + esc(comIni(o.nombre)) + '</div>' +
       '<div class="cmb-n"><b>' + esc(o.nombre) + '</b><small>' + (o.salario > 0 ? 'Salario ' + fm0(o.salario) + ' + comisiones' : 'Solo comisiones') + '</small></div>' +
       '<div class="cmb-t"><small>Total a pagar</small><b>' + m(o.tot) + '</b></div></div>' +
       '<div class="cmb-mid"><div class="cmb-don" style="background:conic-gradient(' + g + ')"><div><small>Comisión</small><b>' + fm0(o.com) + '</b></div></div><div class="cmb-leg">' +
@@ -3419,7 +3422,7 @@ function pintarListaCom() {
   const arr = Object.values(G).map(g => Object.assign(g, { com: num(g.xs.reduce((s, x) => s + x.com, 0)), cob: num(g.xs.reduce((s, x) => s + x.monto, 0)),
     xs: g.xs.sort((a, b) => a.c.fecha.localeCompare(b.c.fecha) || (a.c.created_at || '').localeCompare(b.c.created_at || '')) }));
   arr.sort(F.ord === 'pac' ? (a, b) => a.n.localeCompare(b.n) : F.ord === 'fecha' ? (a, b) => a.xs[0].c.fecha.localeCompare(b.xs[0].c.fecha) || a.n.localeCompare(b.n) : (a, b) => b.com - a.com || a.n.localeCompare(b.n));
-  $('cmb-list').innerHTML = arr.length ? arr.map(g => '<div class="dh-c"><div class="dh-h"><span class="dh-ini">' + esc(comIni(g.n)) + '</span><div class="dh-nm"><b>' + esc(g.n) + '</b><small>' + g.xs.length + ' movimiento' + (g.xs.length === 1 ? '' : 's') + ' · cobrado ' + m(g.cob) + '</small></div>' +
+  $('cmb-list').innerHTML = arr.length ? arr.map(g => '<div class="dh-c" style="--t:' + comColores(g.doc.id)[1] + '"><div class="dh-h"><span class="dh-ini">' + esc(comIni(g.n)) + '</span><div class="dh-nm"><b>' + esc(g.n) + '</b><small>' + g.xs.length + ' movimiento' + (g.xs.length === 1 ? '' : 's') + ' · cobrado ' + m(g.cob) + '</small></div>' +
       '<span class="dg-av" title="Cobra ' + esc(g.doc.nombre) + '" style="background:' + comColores(g.doc.id)[0] + '">' + esc(comIni(g.doc.nombre)) + '</span><div class="dh-t"><small>Comisión</small><b>' + m(g.com) + '</b></div></div>' +
       '<div class="dh-stk">' + g.xs.map(x => '<i style="flex:' + Math.max(x.com, 1) + ';background:' + COM_COL[x.con] + '"></i>').join('') + '</div>' +
       '<div class="dh-l">' + g.xs.map(x => '<div title="Dueño: ' + esc(x.c.dueno_id ? nombreDoctora(x.c.dueno_id) : 'Clínica UMANA') + ' · ' + (x.c._farm ? 'Vendió' : 'Prestó') + ': ' + esc(nombreDoctora(x.c.doctor_id)) + ' · Cobrado ' + m(x.monto) + '">' +
@@ -3454,7 +3457,7 @@ async function pintarComisionesDash(rows, lbl) {
   const m = fmt0;
   sec.innerHTML = '<div class="prod-head"><div class="prod-title">💰 Doctores con comisión</div><div class="prod-period">' + esc(lbl) + '</div></div>' +
     '<div class="prod-sub">Lo que generó cada doctor con sus reglas de comisión, cuánto gana y cuánto queda para la clínica por consulta, laboratorio, procedimientos y farmacia</div>' +
-    '<div class="fin-2col">' + vis.map(o => '<div class="cmd"><div class="cmd-h"><span class="fx-pill ' + comTono(o.id) + '">' + esc(o.nombre) + '</span>' +
+    '<div class="fin-2col">' + vis.map(o => '<div class="cmd"><div class="cmd-h">' + comPill(o) + '' +
       '<div class="cmd-k"><div><small>Generó</small><b>' + m(o.gen) + '</b></div><div><small>Gana el doctor</small><b class="pos">' + m(o.com) + '</b></div><div><small>Queda a la clínica</small><b>' + m(o.cli) + '</b></div></div></div>' +
       '<div class="cmd-t"><div class="cmd-r hd"><span></span><span>Generó</span><span>Doctor</span><span>Clínica</span></div>' +
       COM_LIN.filter(l => o.lin[l[0]].g > 0).map(l => { const x = o.lin[l[0]]; return '<div class="cmd-r"><span><i style="background:' + l[2] + '"></i>' + l[1] + '</span><span>' + m(x.g) + '</span><span class="pos">' + m(x.d) + '</span><span>' + m(x.c || 0) + '</span></div>'; }).join('') +
@@ -3477,7 +3480,7 @@ document.head.insertAdjacentHTML('beforeend', '<style>' + `
 .cm-row .f{color:#5B6B84;font-weight:600}.cm-row .mo,.cm-row .co,.cm-row .cl{text-align:right;font-weight:700}.cm-row .co{color:#1F8A5B}.cm-row .cl{color:#5B6B84}
 .cm-regla{display:inline-block;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:800;white-space:nowrap}.cm-regla.r70{background:#E3F6EE;color:#14764f}.cm-regla.r10{background:#EEF2F7;color:#5B6B84}
 .cmd{border:1px solid #E3E8F0;border-radius:12px;padding:12px 14px;background:#fff;min-width:0}
-.cmd-h{display:flex;flex-direction:column;gap:8px}.cmd-h .fx-pill{align-self:flex-start}.cmd-k{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.cmd-k small{display:block;font-size:9.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#8794A8}.cmd-k b{font-size:16px;font-family:var(--font-d)}
+.cmd-h{display:flex;flex-direction:column;gap:8px}.cmd-h .fx-pill,.cmd-h .cm-dpill{align-self:flex-start}.cmd-k{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.cmd-k small{display:block;font-size:9.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#8794A8}.cmd-k b{font-size:16px;font-family:var(--font-d)}
 .cmd-t{margin-top:10px}.cmd-r{display:grid;grid-template-columns:minmax(0,1.4fr) 1fr 1fr 1fr;gap:8px;padding:5px 0;border-bottom:1px dashed #E3E8F0;font-size:12px;text-align:right}.cmd-r span:first-child{text-align:left}
 .cmd-r.hd{font-size:9.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#8794A8}.cmd-r i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
 .cmd-n{font-size:11px;color:#8794A8;margin-top:7px}
@@ -3487,9 +3490,9 @@ document.head.insertAdjacentHTML('beforeend', '<style>' + `
 .cmb-k small{display:block;font-size:10.5px;letter-spacing:.8px;text-transform:uppercase;font-weight:700;opacity:.8}.cmb-k b{display:block;font-family:var(--font-d);font-size:24px;font-weight:800;margin-top:2px;white-space:nowrap}.cmb-k em{font-style:normal;font-size:11.5px;opacity:.8}
 .cmb-i{position:absolute;right:12px;top:10px;font-size:26px;opacity:.35}
 .cmb-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px;margin-top:16px;align-items:stretch}
-.cmb-card{display:flex;flex-direction:column;background:#fff;border:1px solid #E3E8F0;border-top:5px solid var(--t);border-radius:16px;padding:16px 18px;box-shadow:0 6px 20px rgba(11,22,40,.06)}
+.cmb-card{display:flex;flex-direction:column;background:linear-gradient(180deg,color-mix(in srgb,var(--t) 9%,#fff),#fff 110px);border:1px solid #E3E8F0;border-top:5px solid var(--t);border-radius:16px;padding:16px 18px;box-shadow:0 6px 20px rgba(11,22,40,.06)}
 .cmb-h{display:flex;gap:12px;align-items:center;min-height:52px}.cmb-av{width:42px;height:42px;border-radius:50%;border:2px solid;display:grid;place-items:center;font-weight:800;font-size:14px;color:#fff;flex:0 0 auto}
-.cmb-n b{display:block;font-size:15px}.cmb-n small{font-size:12px;color:#8794A8}.cmb-t{margin-left:auto;text-align:right}.cmb-t small{display:block;font-size:10px;letter-spacing:.6px;text-transform:uppercase;color:#8794A8;font-weight:700}.cmb-t b{font-family:var(--font-d);font-size:26px;color:#0B1628;white-space:nowrap}
+.cmb-n b{display:block;font-size:15px;color:var(--t1)}.cmb-n small{font-size:12px;color:#8794A8}.cmb-t{margin-left:auto;text-align:right}.cmb-t small{display:block;font-size:10px;letter-spacing:.6px;text-transform:uppercase;color:#8794A8;font-weight:700}.cmb-t b{font-family:var(--font-d);font-size:26px;color:#0B1628;white-space:nowrap}
 .cmb-mid{display:grid;grid-template-columns:150px 1fr;gap:18px;align-items:center;margin-top:14px;flex:1}.cmb-don{width:150px;height:150px;border-radius:50%;display:grid;place-items:center}.cmb-don>div{width:100px;height:100px;border-radius:50%;background:#fff;display:grid;place-content:center;text-align:center}
 .cmb-don small{font-size:10px;color:#8794A8;font-weight:700;text-transform:uppercase}.cmb-don b{font-family:var(--font-d);font-size:19px;color:#14764f}
 .cmb-leg>div{display:grid;grid-template-columns:12px 1fr auto;gap:9px;align-items:center;min-height:39px;padding:4px 0;border-bottom:1px dashed #E3E8F0;font-size:12.5px}.cmb-leg>div.vac{opacity:.4}.cmb-leg i{width:12px;height:12px;border-radius:4px}.cmb-leg small{display:block;font-size:11px;color:#8794A8}.cmb-leg b{color:#14764f}
@@ -3502,6 +3505,7 @@ document.head.insertAdjacentHTML('beforeend', '<style>' + `
 @media(max-width:900px){.cmb-strip{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:760px){.cmb-foot span{white-space:normal;font-size:11px}.cmb-foot b{display:block;font-size:13px}.cmb-grid{grid-template-columns:1fr}.cmb-mid{grid-template-columns:1fr;justify-items:center}.cmb-leg{width:100%}.cmb-r{grid-template-columns:1fr 1fr}.cmb-r .pc{grid-column:1/-1}.cmb-k b{font-size:19px}}
 
+.cm-dpill{display:inline-block;border-radius:20px;padding:3px 11px;font-weight:700;font-size:12px;white-space:nowrap}
 .dg-av{display:inline-grid;place-items:center;border-radius:50%;color:#fff;font-weight:800;font-size:10px;flex:0 0 auto;width:24px;height:24px}
 .df{background:#fff;border:1px solid #E3E8F0;border-radius:16px;padding:12px 14px;margin-bottom:14px;box-shadow:0 4px 14px rgba(11,22,40,.05)}
 .df-r1{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.df-seg{display:flex;background:#F1F4F9;border-radius:12px;padding:3px;flex-wrap:wrap}.df-seg button{border:0;background:none;padding:7px 12px;border-radius:9px;font-family:inherit;font-weight:600;font-size:12.5px;color:#5B6B84;display:flex;gap:6px;align-items:center;cursor:pointer}.df-seg button .dg-av{width:20px;height:20px;font-size:9px}.df-seg button.on{background:#0B1628;color:#fff}
@@ -3509,7 +3513,7 @@ document.head.insertAdjacentHTML('beforeend', '<style>' + `
 .df-sel{border:1px solid #E3E8F0;border-radius:10px;padding:4px 4px 4px 12px;font-size:12.5px;color:#5B6B84;display:flex;align-items:center;gap:4px}.df-sel select{border:0;background:none;font-family:inherit;font-weight:700;font-size:12.5px;color:#0B1628;padding:4px;outline:none;cursor:pointer}
 .df-r2{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}.df-chip{border:1.5px solid var(--c);background:var(--c);color:#fff;border-radius:999px;padding:5px 11px;font-family:inherit;font-weight:700;font-size:12px;display:flex;gap:6px;align-items:center;cursor:pointer}.df-chip em{font-style:normal;background:rgba(255,255,255,.25);border-radius:999px;padding:0 7px}
 .df-chip.off{background:#fff;color:#8794A8;border-color:#D7DEE8}.df-chip.off em{background:#F1F4F9}.df-res{margin-left:auto;font-size:12px;color:#5B6B84;font-weight:700}
-.dh{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:12px}.dh-c{background:#fff;border:1px solid #E3E8F0;border-radius:14px;padding:12px 14px;min-width:0}
+.dh{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:12px}.dh-c{background:#fff;border:1px solid #E3E8F0;border-left:4px solid var(--t);border-radius:14px;padding:12px 14px;min-width:0}
 .dh-h{display:flex;gap:10px;align-items:center}.dh-ini{width:36px;height:36px;border-radius:11px;background:#EEF2F7;display:grid;place-items:center;font-weight:800;font-size:12px;color:#1B3A6B;flex:0 0 auto}.dh-nm{min-width:0}.dh-h b{display:block;font-size:14px}.dh-h small{font-size:11.5px;color:#8794A8}.dh-h .dg-av{margin-left:auto}
 .dh-t{text-align:right}.dh-t small{display:block;font-size:9.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#8794A8}.dh-t b{color:#14764f;font-size:17px;font-family:var(--font-d);white-space:nowrap}
 .dh-stk{display:flex;gap:2px;height:6px;border-radius:4px;overflow:hidden;margin:10px 0 6px}.dh-stk i{display:block}
