@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="app-version" content="2026.11.10-6"/>
+<meta name="app-version" content="2026.11.11-1"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>UMANA Productividad</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1772,7 +1772,14 @@ async function cargarConsultas(desde, hasta, borradas) {
     .gte('fecha', desde).lte('fecha', hasta)
     .order('fecha', { ascending: false }).order('created_at', { ascending: false }).order('id'));
   if (r.error) throw r.error;
-  return r.data;
+  return r.data.map(atribuirDueno);
+}
+/* Productividad por dueño: doctor_id pasa a ser el dueño (si lo hay) y prestador_id conserva quién atendió o vendió.
+   El doctor con usuario ve lo que él atendió, como siempre. */
+function atribuirDueno(c) {
+  c.prestador_id = c.doctor_id; c.prestador = c.doctor;
+  if (c.dueno_id && c.dueno_id !== c.doctor_id && !ES_DOCTORA()) { c.doctor_id = c.dueno_id; c.doctor = { id: c.dueno_id, nombre: nombreDoctora(c.dueno_id) }; }
+  return c;
 }
 
 /* Farmacia: las ventas viven en farmacia_ventas y se suman a Cierre, Dashboard y flash report como movimientos */
@@ -1783,7 +1790,7 @@ async function cargarVentasFarmacia(desde, hasta) {
   if (r.error) throw r.error;
   return r.data;
 }
-const comoMovimiento = v => ({
+const comoMovimiento = v => atribuirDueno({
   id: v.id, fecha: v.fecha, doctor_id: v.doctor_id, dueno_id: v.dueno_id || null, paciente_id: v.paciente_id, paciente: v.paciente, doctor: v.doctor,
   motivo: 'Farmacia', tipo_consulta: v.producto, descripcion: v.producto + (v.cantidad > 1 ? ' ×' + v.cantidad : ''),
   monto: v.monto, medio_pago: v.medio_pago, monto_2: v.monto_2, medio_pago_2: v.medio_pago_2,
@@ -1943,7 +1950,7 @@ function initFormConsulta(cont, p, modo, consulta, onSaved) {
   cont.innerHTML = htmlFormConsulta(p, modo);
   const F = FORMS[p] = { pac: null, busy: false, acIdx: -1, acRows: [], servs: [] };
   const g = id => $(p + '-' + id);
-  g('dl-doc').innerHTML = DOCTORAS.filter(d => d.activo || (consulta && consulta.doctor_id === d.id)).map(d => '<option value="' + esc(d.nombre) + '">').join('');
+  g('dl-doc').innerHTML = DOCTORAS.filter(d => d.activo || (consulta && (consulta.prestador_id || consulta.doctor_id) === d.id)).map(d => '<option value="' + esc(d.nombre) + '">').join('');
 
   // Categoría → Tipo de consulta (catálogo de la base, con precio de lista)
   F.servs = serviciosActivos().map(c => ({ v: c.id, t: c.tipo_consulta, motivo: c.motivo, tipo: c.tipo_consulta, desc: !!c.requiere_descripcion, precio: c.precio == null ? null : num(c.precio) }));
@@ -2069,7 +2076,7 @@ function initFormConsulta(cont, p, modo, consulta, onSaved) {
     g('fecha').value = c ? c.fecha : todayLocal();
     if (ES_DOCTORA()) g('doc').value = PERFIL.nombre;
     if (!c) return;
-    g('doc').value = nombreDoctora(c.doctor_id);
+    g('doc').value = nombreDoctora(c.prestador_id || c.doctor_id);
     if (g('dueno')) g('dueno').innerHTML = '<option value="clinica">🏥 Clínica UMANA</option>' + DOCTORAS.filter(d => d.activo !== false || d.id === c.dueno_id).map(d => '<option value="' + d.id + '"' + (d.id === c.dueno_id ? ' selected' : '') + '>' + esc(d.nombre) + '</option>').join('');
     if (c.paciente) { F.pac = { id: c.paciente.id, nombre: c.paciente.nombre, telefono: c.paciente.telefono }; g('pac').value = c.paciente.nombre; telCargar(p, c.paciente.telefono); }
     const s = F.servs.find(x => x.motivo === c.motivo && x.tipo === (c.tipo_consulta || '')); g('cat').value = s ? s.motivo : ''; llenarTipos(); g('tipo').value = s ? s.t : ''; pintarDesc();
@@ -2711,7 +2718,8 @@ function pintarHistorial() {
       return '<tr data-id="' + esc(c.id) + '"' + (c._farm ? ' class="hist-farm-row"' : '') + '>' +
         '<td class="h-dt" data-l="Fecha">' + fmtD(c.fecha) + '</td>' +
         '<td data-l="Paciente">' + esc(c.paciente ? c.paciente.nombre : '—') + (c.no_vino ? ' <span class="sbadge badge-novino">👻 No vino</span>' : '') + (c.paciente && c.paciente.telefono ? '<div style="font-size:10px;color:var(--g4)">' + esc(c.paciente.telefono) + '</div>' : '') + '</td>' +
-        (ES_DOCTORA() ? '' : '<td data-l="Doctor">' + personaPill(c.doctor_id, c.doctor ? c.doctor.nombre : nombreDoctora(c.doctor_id)) + '</td>') +
+        (ES_DOCTORA() ? '' : '<td data-l="Doctor">' + personaPill(c.doctor_id, c.doctor ? c.doctor.nombre : nombreDoctora(c.doctor_id)) +
+          (c.prestador_id && c.prestador_id !== c.doctor_id ? '<div style="font-size:10px;color:var(--g4);margin-top:2px">👤 dueño · ' + (c._farm ? 'vendió ' : 'prestó ') + esc(corto(nombreDoctora(c.prestador_id))) + '</div>' : '') + '</td>') +
         '<td data-l="Servicio">' + servicioPill(c) + '</td>' +
         '<td data-l="Monto"><b style="color:' + (c._farm ? '#7D3C98' : 'var(--teal)') + '">' + (c.no_vino ? '—' : money(ingreso(c))) + '</b></td>' +
         '<td data-l="Pago">' + pago + '</td>' +
@@ -3283,7 +3291,7 @@ const COM_CORTO = { consP: 'Consulta propia', consO: 'Consulta otro', proc: 'Pro
 const esAyudantia = c => !c._farm && /ayudant/i.test(c.tipo_consulta || '');
 /* Devuelve [doctorId, concepto] o null */
 function comisionDe(c, out) {
-  const k = lineaDe(c), X = c.doctor_id, Dn = c.dueno_id || null, x = out[X];
+  const k = lineaDe(c), X = c.prestador_id || c.doctor_id, Dn = c.dueno_id || null, x = out[X];
   if (k === 'cons') return x ? [X, Dn === X ? 'consP' : 'consO'] : null;
   if (k === 'proc') {
     if (esAyudantia(c) && x && x.pct.ayud != null) return [X, 'ayud'];
@@ -3425,9 +3433,9 @@ function pintarListaCom() {
   $('cmb-list').innerHTML = arr.length ? arr.map(g => '<div class="dh-c" style="--t:' + comColores(g.doc.id)[1] + '"><div class="dh-h"><span class="dh-ini">' + esc(comIni(g.n)) + '</span><div class="dh-nm"><b>' + esc(g.n) + '</b><small>' + g.xs.length + ' movimiento' + (g.xs.length === 1 ? '' : 's') + ' · cobrado ' + m(g.cob) + '</small></div>' +
       '<span class="dg-av" title="Cobra ' + esc(g.doc.nombre) + '" style="background:' + comColores(g.doc.id)[0] + '">' + esc(comIni(g.doc.nombre)) + '</span><div class="dh-t"><small>Comisión</small><b>' + m(g.com) + '</b></div></div>' +
       '<div class="dh-stk">' + g.xs.map(x => '<i style="flex:' + Math.max(x.com, 1) + ';background:' + COM_COL[x.con] + '"></i>').join('') + '</div>' +
-      '<div class="dh-l">' + g.xs.map(x => '<div title="Dueño: ' + esc(x.c.dueno_id ? nombreDoctora(x.c.dueno_id) : 'Clínica UMANA') + ' · ' + (x.c._farm ? 'Vendió' : 'Prestó') + ': ' + esc(nombreDoctora(x.c.doctor_id)) + ' · Cobrado ' + m(x.monto) + '">' +
+      '<div class="dh-l">' + g.xs.map(x => '<div title="Dueño: ' + esc(x.c.dueno_id ? nombreDoctora(x.c.dueno_id) : 'Clínica UMANA') + ' · ' + (x.c._farm ? 'Vendió' : 'Prestó') + ': ' + esc(nombreDoctora((x.c.prestador_id || x.c.doctor_id))) + ' · Cobrado ' + m(x.monto) + '">' +
         '<span class="dh-chip" style="background:' + COM_COL[x.con] + '">' + COM_ICO[x.con] + ' ' + x.pct + '%</span><span class="dh-q">' + (x.c._farm ? '💊 ' + esc(x.c.descripcion) : esc(servicioTxt(x.c))) +
-        (x.c.doctor_id !== g.doc.id ? ' · ' + (x.c._farm ? 'vendió ' : 'prestó ') + esc(corto(nombreDoctora(x.c.doctor_id))) : '') + '</span><span class="dh-f">' + esc(fjDiaCorto(x.c.fecha)) + '</span><b>' + m(x.com) + '</b></div>').join('') + '</div></div>').join('')
+        ((x.c.prestador_id || x.c.doctor_id) !== g.doc.id ? ' · ' + (x.c._farm ? 'vendió ' : 'prestó ') + esc(corto(nombreDoctora((x.c.prestador_id || x.c.doctor_id)))) : '') + '</span><span class="dh-f">' + esc(fjDiaCorto(x.c.fecha)) + '</span><b>' + m(x.com) + '</b></div>').join('') + '</div></div>').join('')
     : '<div class="empty-note" style="grid-column:1/-1">' + (base.length || F.q || F.dueno || F.doc ? 'Ningún movimiento con esos filtros.' : 'Sin movimientos con comisión en el mes.') + '</div>';
 }
 async function exportarComisiones() {
@@ -3440,7 +3448,7 @@ async function exportarComisiones() {
   XLSX.utils.book_append_sheet(wb, ws, 'Resumen');
   const det = [['Doctor', 'Fecha', 'Paciente', 'Concepto', 'Dueño', 'Prestó / vendió', 'Regla', '%', 'Cobrado', 'Comisión', 'Clínica']];
   CM.res.forEach(o => o.mov.forEach(x => det.push([o.nombre, fmtD(x.c.fecha), x.c.paciente ? x.c.paciente.nombre : 'Sin paciente', x.c._farm ? 'Farmacia: ' + x.c.descripcion : servicioTxt(x.c),
-    x.c.dueno_id ? nombreDoctora(x.c.dueno_id) : 'Clínica UMANA', nombreDoctora(x.c.doctor_id), COM_CON.find(z => z[0] === x.con)[1], x.pct, x.monto, x.com, x.cli])));
+    x.c.dueno_id ? nombreDoctora(x.c.dueno_id) : 'Clínica UMANA', nombreDoctora((x.c.prestador_id || x.c.doctor_id)), COM_CON.find(z => z[0] === x.con)[1], x.pct, x.monto, x.com, x.cli])));
   const ws2 = XLSX.utils.aoa_to_sheet(det); ws2['!cols'] = [26, 11, 26, 34, 24, 24, 34, 6, 12, 12, 12].map(w => ({ wch: w }));
   XLSX.utils.book_append_sheet(wb, ws2, 'Detalle');
   XLSX.writeFile(wb, 'UMANA_Comisiones_' + CM.mes + '.xlsx');
@@ -3574,7 +3582,7 @@ function flashComisionesHtml(lista, mes) {
         '<div class="rx-tot"><div><span>Salario fijo</span><b>' + (o.salario ? fm0(o.salario) : 'No tiene') + '</b></div><div class="rx-op">+</div><div><span>Comisiones</span><b>' + fm0(o.com) + '</b></div><div class="rx-op">=</div><div class="rx-fin"><span>Total a pagar</span><b class="d">' + fm0(o.tot) + '</b></div></div>') +
       '<div class="rx-t2">Detalle por paciente <small>' + gs.length + ' paciente' + (gs.length === 1 ? '' : 's') + ' · ' + o.mov.length + ' movimiento' + (o.mov.length === 1 ? '' : 's') + (n > 1 ? ' · hoja ' + (i + 1) + ' de ' + n : '') + '</small></div>' +
       (gs.length ? '<div class="rx-g">' + tz.map(g => '<div class="rx-p"><div class="rx-ph"><b>' + esc(g.n) + '</b><em>' + fm0(g.com) + '</em></div>' +
-        g.xs.map(x => '<div class="rx-ln"><i style="background:' + COM_COL[x.con] + '"></i><span>' + esc(conc(x)) + (x.c.doctor_id !== o.id ? ' · ' + (x.c._farm ? 'vendió ' : 'prestó ') + esc(corto(nombreDoctora(x.c.doctor_id))) : '') + '</span><small>' + x.pct + '% de ' + fm0(x.monto) + ' · ' + esc(fjDiaCorto(x.c.fecha)) + '</small><b>' + fm0(x.com) + '</b></div>').join('') + '</div>').join('') + '</div>'
+        g.xs.map(x => '<div class="rx-ln"><i style="background:' + COM_COL[x.con] + '"></i><span>' + esc(conc(x)) + ((x.c.prestador_id || x.c.doctor_id) !== o.id ? ' · ' + (x.c._farm ? 'vendió ' : 'prestó ') + esc(corto(nombreDoctora((x.c.prestador_id || x.c.doctor_id)))) : '') + '</span><small>' + x.pct + '% de ' + fm0(x.monto) + ' · ' + esc(fjDiaCorto(x.c.fecha)) + '</small><b>' + fm0(x.com) + '</b></div>').join('') + '</div>').join('') + '</div>'
         : '<div style="color:var(--g4)">Sin movimientos con comisión en el mes.</div>') +
       (i === n - 1 ? '<div class="rx-nota">Reglas: ' + esc(comReglaTxt(o)) + '. Si el paciente es suyo pero lo atiende otro doctor, no cobra la consulta ni el procedimiento. Laboratorio y farmacia de sus pacientes cuentan lo venda quien lo venda.</div>' : '') +
       '</div>__PIE__</div>'));
