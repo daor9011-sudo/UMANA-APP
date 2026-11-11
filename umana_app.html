@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="app-version" content="2026.11.11-1"/>
+<meta name="app-version" content="2026.11.11-2"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>UMANA Productividad</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1160,6 +1160,7 @@ body.en-auth .wmk{color:rgba(255,255,255,.4)}
 .row4.ef-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
 @media (max-width:820px){.row4.ef-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:560px){.row4.ef-grid{grid-template-columns:1fr}.row4.ef-grid>.fi2{grid-column:auto!important}}
+.g-medio{font-size:10.5px;font-weight:600;color:var(--g6,#5B6B84);margin-top:2px;white-space:nowrap}.g-medio.sin{color:#B4BDCB;font-style:italic}
 </style>
 </head>
 <body>
@@ -1369,6 +1370,7 @@ body.en-auth .wmk{color:rgba(255,255,255,.4)}
       <div><label class="lbl" for="mg-cat">Categoría</label><select class="inp" id="mg-cat"></select></div>
       <div><label class="lbl" for="mg-monto">Monto ($)</label><input class="inp" type="number" id="mg-monto" min="0.01" step="0.01" inputmode="decimal" placeholder="0.00"></div>
       <div style="grid-column:1/-1"><label class="lbl" for="mg-desc">Descripción del gasto</label><textarea class="inp" id="mg-desc" rows="2" maxlength="200"></textarea></div>
+      <div style="grid-column:1/-1"><span class="lbl">Medio de pago</span><div class="fact-group" id="mg-medio"></div></div>
       <div style="grid-column:1/-1"><span class="lbl">Facturación</span><div class="fact-group" id="mg-fact"></div></div>
     </div>
     <div class="err hide" id="mg-err" style="margin:12px 0 0"></div>
@@ -4837,7 +4839,7 @@ $('cic-save').onclick = async () => {
 };
 
 /* ════════ GASTOS (igual que Skin Fabric) ════════ */
-const GS = { modo: 'mes', mes: null, d: null, h: null, cat: 'todos', fac: '', doc: '', q: '', rows: [], seq: 0, charts: {}, edit: null, nuevoFac: 'no_facturado', editFac: 'no_facturado' };
+const GS = { modo: 'mes', mes: null, d: null, h: null, cat: 'todos', fac: '', doc: '', q: '', rows: [], seq: 0, charts: {}, edit: null, nuevoFac: 'no_facturado', editFac: 'no_facturado', nuevoMedio: '', editMedio: '' };
 const DOC_COLORS_GASTO = ['#1B3A6B', '#7D3C98', '#2E7D4F', '#9A6010', '#A3376B', '#0E7C74', '#B8481F'];
 const GENERAL = '__general';
 const FACTURACION = [
@@ -4854,6 +4856,11 @@ const optFiltroDoc = () => '<option value="">Todos los doctores</option><option 
 const optFiltroFac = () => '<option value="">Facturado y no facturado</option>' + FACTURACION.slice(1).map(f => '<option value="' + f.id + '">' + f.label + '</option>').join('') + '<option value="no_facturado">No facturado</option>';
 function chipsFact(nombre, actual) {
   return FACTURACION.map(f => '<label class="fact-chip' + (f.id === actual ? ' on' : '') + '"><input type="radio" name="' + nombre + '" value="' + f.id + '"' + (f.id === actual ? ' checked' : '') + '><span class="rdot"></span><span>' + f.label + '</span></label>').join('');
+}
+const MEDIOS_GASTO = [{ id: 'efectivo', label: '💵 Efectivo' }, { id: 'tarjeta crédito', label: '💳 Tarjeta Crédito' }, { id: 'tarjeta débito', label: '💳 Tarjeta Débito' }, { id: 'transferencia', label: '🏦 Transferencia' }];
+const medioGastoTxt = m => { const x = MEDIOS_GASTO.find(z => z.id === m); return x ? x.label : m === 'depósito' ? '🏦 Depósito' : 'Sin medio de pago'; };
+function chipsMedio(nombre, actual) {
+  return MEDIOS_GASTO.map(f => '<label class="fact-chip' + (f.id === actual ? ' on' : '') + '"><input type="radio" name="' + nombre + '" value="' + f.id + '"' + (f.id === actual ? ' checked' : '') + '><span class="rdot"></span><span>' + f.label + '</span></label>').join('');
 }
 function enlazarChips(cont, onChange) {
   cont.querySelectorAll('input[type=radio]').forEach(r => r.addEventListener('change', () => {
@@ -4886,6 +4893,7 @@ function renderGastos() {
           '<div class="fg"><label for="gasto-categoria">Categoría</label><select id="gasto-categoria">' + optCatGasto('') + '</select><div id="gasto-hints">' +
             CATALOGOS.categoriasGasto.map(c => '<div class="cat-hint" data-cat="' + esc(c) + '">' + esc(catInfo(c).desc) + '</div>').join('') + '</div></div>' +
           '<div class="fg"><label for="gasto-monto">Monto ($)</label><input type="number" id="gasto-monto" min="0.01" step="0.01" placeholder="0.00" inputmode="decimal"></div>' +
+          '<div class="fg"><label>Medio de pago</label><div class="fact-group" id="gasto-medio-group">' + chipsMedio('gasto-medio', '') + '</div></div>' +
           '<div class="fg"><label for="gasto-descripcion">Descripción del gasto</label><textarea id="gasto-descripcion" rows="2" placeholder="¿En qué se gastó?" maxlength="200"></textarea></div>' +
           '<div class="fg"><label>Facturación</label><div class="fact-group" id="gasto-fact-group">' + chipsFact('gasto-facturacion', 'no_facturado') + '</div></div>' +
           '<div class="err hide" id="gasto-err" style="margin-bottom:10px"></div>' +
@@ -4927,6 +4935,7 @@ function renderGastos() {
     $('gasto-fecha').value = todayLocal(); $('gasto-fecha').max = todayLocal();
     $('gasto-categoria').onchange = () => document.querySelectorAll('#gasto-hints .cat-hint').forEach(hn => hn.classList.toggle('show', hn.dataset.cat === $('gasto-categoria').value));
     enlazarChips($('gasto-fact-group'), v => { GS.nuevoFac = v; });
+    enlazarChips($('gasto-medio-group'), v => { GS.nuevoMedio = v; });
     $('gasto-btn-guardar').onclick = () => guardarGasto(false);
     $('gasto-btn-exportar').onclick = exportarGastos;
   }
@@ -4947,7 +4956,7 @@ async function cargarGastos() {
   $('gasto-mes').value = GS.modo === 'mes' ? GS.mes : ''; $('gasto-desde').value = GS.modo === 'todo' ? '' : GS.d; $('gasto-hasta').value = GS.modo === 'todo' ? '' : GS.h;
   $('gasto-hero-per').textContent = GS.modo === 'mes' ? MESES[+GS.mes.slice(5, 7) - 1].replace(/^./, c => c.toUpperCase()) + ' ' + GS.mes.slice(0, 4) : GS.modo === 'rango' ? fmtD(GS.d) + ' – ' + fmtD(GS.h) : 'Todo el historial';
   $('gasto-tbody').innerHTML = '<tr><td colspan="8" class="empty">Cargando…</td></tr>';
-  const r = await traerTodo(() => sb.from('gastos').select('id,fecha,categoria,monto,descripcion,facturado,facturacion,doctor_id,creado_por,created_at').gte('fecha', d).lte('fecha', h).order('fecha', { ascending: false }).order('created_at', { ascending: false }).order('id'));
+  const r = await traerTodo(() => sb.from('gastos').select('id,fecha,categoria,monto,medio_pago,descripcion,facturado,facturacion,doctor_id,creado_por,created_at').gte('fecha', d).lte('fecha', h).order('fecha', { ascending: false }).order('created_at', { ascending: false }).order('id'));
   if (seq !== GS.seq) return;
   if (r.error) { console.error(r.error); $('gasto-tbody').innerHTML = ''; $('gasto-empty').textContent = 'No se pudieron cargar los gastos. ' + traducirError(r.error); $('gasto-empty').style.display = ''; return; }
   GS.rows = r.data.map(g => Object.assign(g, { facturacion: g.facturacion || (g.facturado ? 'facturado_clinica' : 'no_facturado') }));
@@ -4986,7 +4995,7 @@ function pintarGastos() {
       const ci = catInfo(g.categoria), fi = factInfo(g.facturacion);
       return '<tr data-id="' + esc(g.id) + '"><td data-l="Fecha">' + fmtD(g.fecha) + '</td>' +
         '<td data-l="Categoría"><span class="badge-cat cat-' + ci.id + '">' + esc(ci.label) + '</span></td>' +
-        '<td data-l="Monto" class="monto-cell">' + money(g.monto) + '</td>' +
+        '<td data-l="Monto" class="monto-cell">' + money(g.monto) + '<div class="g-medio' + (g.medio_pago ? '' : ' sin') + '">' + esc(medioGastoTxt(g.medio_pago)) + '</div></td>' +
         '<td data-l="Facturación"><span class="badge-fact ' + fi.cls + '">' + esc(fi.label) + '</span></td>' +
         '<td data-l="Agregado por" class="autor-cell"><b>' + esc(nombreAsociado(g.doctor_id)) + '</b></td>' +
         '<td data-l="Registrado el" class="autor-cell">' + esc(fmtFechaHoraCorta(g.created_at)) + '</td>' +
@@ -5019,13 +5028,13 @@ async function guardarGasto(desdeModal) {
   const err = m => { const e = $(desdeModal ? 'mg-err' : 'gasto-err'); e.textContent = m; e.classList.remove('hide'); };
   const g = id => $(desdeModal ? 'mg-' + id : { fecha: 'gasto-fecha', cat: 'gasto-categoria', monto: 'gasto-monto', desc: 'gasto-descripcion', doc: 'gasto-doctor-asociado' }[id]);
   const f = g('fecha').value, cat = g('cat').value, monto = num(g('monto').value), desc = g('desc').value.trim(), asoc = g('doc').value;
-  const fac = desdeModal ? GS.editFac : GS.nuevoFac;
+  const fac = desdeModal ? GS.editFac : GS.nuevoFac, medio = desdeModal ? GS.editMedio : GS.nuevoMedio;
   const falt = []; if (!asoc) falt.push('a quién se asocia (doctor o general)'); if (!f) falt.push('fecha'); else if (f > todayLocal()) falt.push('fecha (no puede ser futura)');
-  if (!cat) falt.push('categoría'); if (!(monto > 0)) falt.push('monto mayor a cero'); if (!desc) falt.push('descripción');
+  if (!cat) falt.push('categoría'); if (!(monto > 0)) falt.push('monto mayor a cero'); if (!medio) falt.push('medio de pago'); if (!desc) falt.push('descripción');
   if (falt.length) return err('Falta: ' + falt.join(', ') + '.');
   const b = $(desdeModal ? 'mg-save' : 'gasto-btn-guardar'); if (b.disabled) return; b.disabled = true;
   try {
-    const fila = { fecha: f, categoria: cat, monto, descripcion: desc, facturacion: fac, facturado: fac !== 'no_facturado', doctor_id: asoc === GENERAL ? null : asoc };
+    const fila = { fecha: f, categoria: cat, monto, medio_pago: medio, descripcion: desc, facturacion: fac, facturado: fac !== 'no_facturado', doctor_id: asoc === GENERAL ? null : asoc };
     const q = desdeModal && GS.edit ? sb.from('gastos').update(fila).eq('id', GS.edit.id).select('id') : sb.from('gastos').insert(Object.assign({ creado_por: PERFIL.id }, fila)).select('id');
     const { data, error } = await q;
     if (error || !data || !data.length) throw error || new Error('sin permiso');
@@ -5033,6 +5042,7 @@ async function guardarGasto(desdeModal) {
     else {
       $('gasto-monto').value = ''; $('gasto-descripcion').value = ''; $('gasto-categoria').value = ''; $('gasto-categoria').onchange();
       $('gasto-fact-group').innerHTML = chipsFact('gasto-facturacion', 'no_facturado'); GS.nuevoFac = 'no_facturado'; enlazarChips($('gasto-fact-group'), v => { GS.nuevoFac = v; });
+      $('gasto-medio-group').innerHTML = chipsMedio('gasto-medio', ''); GS.nuevoMedio = ''; enlazarChips($('gasto-medio-group'), v => { GS.nuevoMedio = v; });
       $('gasto-err').classList.add('hide');
     }
     toast(desdeModal && GS.edit ? 'Gasto actualizado.' : 'Gasto registrado.'); cargarGastos();
@@ -5049,6 +5059,7 @@ function abrirGasto(g) {
   GS.editFac = g ? g.facturacion : 'no_facturado';
   $('mg-fact').innerHTML = chipsFact('mg-facturacion', GS.editFac);
   enlazarChips($('mg-fact'), v => { GS.editFac = v; });
+  GS.editMedio = g && g.medio_pago ? g.medio_pago : ''; $('mg-medio').innerHTML = chipsMedio('mg-medio-r', GS.editMedio); enlazarChips($('mg-medio'), v => { GS.editMedio = v; });
   $('mg-err').classList.add('hide');
   abrirModal('m-gasto');
 }
@@ -5066,11 +5077,11 @@ async function exportarGastos() {
   if (!rows.length) return toast('No hay gastos para exportar con estos filtros.');
   try {
     await cargarScript(CDN.xlsx);
-    const head = ['Fecha', 'Categoría', 'Monto', 'Facturación', 'Asociado a', 'Registrado el', 'Descripción'];
-    const body = rows.map(g => [fmtD(g.fecha), catInfo(g.categoria).label.replace(/^\S+\s/, ''), num(g.monto), factInfo(g.facturacion).label, nombreAsociado(g.doctor_id), fmtFechaHora(g.created_at), g.descripcion]);
-    body.push(['', 'TOTAL', sumar(rows, x => num(x.monto)), '', '', '', '']);
+    const head = ['Fecha', 'Categoría', 'Monto', 'Medio de pago', 'Facturación', 'Asociado a', 'Registrado el', 'Descripción'];
+    const body = rows.map(g => [fmtD(g.fecha), catInfo(g.categoria).label.replace(/^\S+\s/, ''), num(g.monto), medioGastoTxt(g.medio_pago).replace(/^\S+\s/, ''), factInfo(g.facturacion).label, nombreAsociado(g.doctor_id), fmtFechaHora(g.created_at), g.descripcion]);
+    body.push(['', 'TOTAL', sumar(rows, x => num(x.monto)), '', '', '', '', '']);
     const wb = XLSX.utils.book_new(), ws = XLSX.utils.aoa_to_sheet([head].concat(body));
-    ws['!cols'] = [11, 18, 12, 18, 28, 17, 40].map(w => ({ wch: w }));
+    ws['!cols'] = [11, 18, 12, 16, 18, 28, 17, 40].map(w => ({ wch: w }));
     XLSX.utils.book_append_sheet(wb, ws, 'Gastos');
     const [d, h] = gsRango();
     XLSX.writeFile(wb, 'UMANA_Gastos_' + (GS.modo === 'todo' ? 'todo' : sufijoArchivo(d, h)) + '.xlsx');
